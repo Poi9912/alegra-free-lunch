@@ -56,4 +56,4 @@ El enfoque de diseño es arquitectura hexagonal con microservicios, se enfocará
 
 Diagrama:
 
-<img src:"./diagrams/arquitectura.drawio.svg" />
+![Diagrama de arquitectura](./diagrams/arquitectura.drawio.svg)
