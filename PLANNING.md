@@ -47,3 +47,12 @@ El testing se separará en 5 partes requeridas para considerar la aplicación co
 ### Despliegues
 
 Se requiere despliegue en un ambiente disponible desde internet, al ya contar con dominio y VPS para portafolio personal en Linode se hará un despliegue en el nodo con capacidad **Docker Swarm** para actuar como ambiente **"productivo"** de la aplicación, control del swarm y stack se hará desde **Dokploy** de esta instancia, para ver métricas y comportamiento en tiempo real requiere intervención del administrador, se adjuntará un análisis dentro de los entregables, pero no acceso al panel.
+
+## Implementación de IA
+
+El uso de IA se enfocará en código asistido, no se ve valor agregado de un chatBot o un agente conectado a la aplicación para solo una jornada de almuerzo gratis, no hay posibilidad de retorno de costo en esta aplicación.
+
+## Arquitectura
+
+El enfoque de diseño es arquitectura hexagonal con microservicios, se enfocará en 2 frentes, dashboard/pedidos (gerente) y operaciones (inventario/cocina/entregas).
+
