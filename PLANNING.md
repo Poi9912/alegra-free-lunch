@@ -4,7 +4,7 @@
 
 ### Backend
 
-1. Se debe diseñar una api con Node.js de forma nativa por medio de la cual el front interactua para hacer los pedidos, generar nuevos pedidos, ver pedidos existentes, recetas disponibles e inventario restante. Interfaz principal REST del lado del front (client) y asyncrono y Webhooks para actualización de datos desde externos (brokers).
+1. Se debe diseñar una api con Node.js de forma nativa por medio de la cual el front interactua para hacer los pedidos, generar nuevos pedidos, ver pedidos existentes, recetas disponibles e inventario restante. Interfaz principal REST del lado del front (client), asyncrono y Webhooks para actualización de datos desde externos (brokers).
 
 2. Se debe diseñar microbrokers para exponer a la API con las siguientes capacidades:
     - Resistencia a fallos (Alta disponibilidad).
@@ -36,11 +36,16 @@ Validación de código y vulnerabilidades, las herramientas dedicadas a este pro
 ### Testing
 
 El testing se separará en 5 partes requeridas para considerar la aplicación como **"Production Ready"**:
-    1. Tests unitarios dentro de cada punto del stack (back, brokers, front), se usará **Jest** y **GoLang Testing Nativo**.
-    2. Test de carga para la capa de API e Integración, se usará **ApacheJMETER**.
-    3. Test de capa lógica OpenAPI, se usará **Jest** enfocado a los endpoints.
-    4. Test de seguridad de la aplicación, se usará **ZAP** enfocado a seguridad web y PenTesting automatizado.
-    5. Test de usuario simulado, se realizará de forma manual en ambiente staging previo a aprobar subida al ambiente productivo.
+
+1. Tests unitarios dentro de cada punto del stack (back, brokers, front), se usará **Jest** y **GoLang Testing Nativo**.
+
+2. Test de carga para la capa de API e Integración, se usará **ApacheJMETER**.
+
+3. Test de capa lógica OpenAPI, se usará **Jest** enfocado a los endpoints.
+
+4. Test de seguridad de la aplicación, se usará **ZAP** enfocado a seguridad web y PenTesting automatizado.
+
+5. Test de usuario simulado, se realizará de forma manual en ambiente staging previo a aprobar subida al ambiente productivo.
 
 ### Despliegues
 
