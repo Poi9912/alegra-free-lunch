@@ -21,11 +21,19 @@ Table recipie_ingredients {
   quantity ingredient [not null, default: 1]
 }
 
+Enum order_status {
+  created
+  confirmed
+  cooking
+  ready
+  delivered
+}
+
 Table orders {
   id integer [pk, unique]
   order_number varchar(255) [unique, not null] 
   recipe_id integer [ref: > recipes.id, not null] 
-  status varchar(50) [not null, default: 'created']
+  status order_status [not null, default: 'created']
   created_at timestamp [default: `CURRENT_TIMESTAMP`]
   updated_at timestamp [default: `CURRENT_TIMESTAMP`]
 
@@ -33,4 +41,11 @@ Table orders {
     status [name: 'idx_orders_status']
     (status, created_at) [name: 'idx_orders_status_created']
   }
+}
+
+Table inventory_purchase_history {
+  id integer [pk, unique]
+  ingredient integer [ref: > ingredients.id]
+  quantity integer [not null, default: 1]
+  purchased_at timestamp [default: `CURRENT_TIMESTAMP`]
 }
