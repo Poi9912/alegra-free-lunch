@@ -1,0 +1,36 @@
+Table ingredients {
+  id integer [pk, unique]
+  name varchar(255) [not null, unique]
+}
+
+Table ingredients_inventory {
+  id integer [pk, unique]
+  ingredient integer [ref: - ingredients.id]
+  quantity integer [default: 0]
+}
+
+Table recipes {
+  id integer [pk, unique]
+  product varchar(255) [not null, unique] 
+}
+
+Table recipie_ingredients {
+  id integer [pk, unique]
+  recipie_id integer [ref: > recipes.id]
+  ingredient_id integer [ref: > ingredients.id]
+  quantity ingredient [not null, default: 1]
+}
+
+Table orders {
+  id integer [pk, unique]
+  order_number varchar(255) [unique, not null] 
+  recipe_id integer [ref: > recipes.id, not null] 
+  status varchar(50) [not null, default: 'created']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    status [name: 'idx_orders_status']
+    (status, created_at) [name: 'idx_orders_status_created']
+  }
+}

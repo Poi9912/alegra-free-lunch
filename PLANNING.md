@@ -66,4 +66,4 @@ Diagrama:
 2. Api-gateway: NodeJS puro con node:http con acceso a colas, caché y DB.
 3. DB: PostgreSQL con optimización de índices para tabla de pedidos.
 4. Caché, Mensajería: Redis como capa de caché para PostgreSQL y Redis Streams para comunicación asíncrona.
-5. Brokers: NodeJS puro con node:http para consumir API de mercado y Golang para procesos de 
+5. Brokers: NodeJS puro con node:http para consumir API de mercado y Golang para procesos internos de inventario, pedidos y estado de pedidos.
