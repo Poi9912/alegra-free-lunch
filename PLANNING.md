@@ -29,22 +29,19 @@ Se requiere acceso con autenticación del gerente, se generará una capa de segu
 ### Code Coverage, deuda técnica y vulnerabilidades
 
 Validación de código y vulnerabilidades, las herramientas dedicadas a este proceso serán fijas desde el inicio dentro del mono-repo y se manejaran en los dashboards como proyectos independientes (back, brokers y front como proyectos independientes para permitir multiples equipos trabajar en sus asignaciones y solucionar deuda técnica o vulnerabilidades sin afectar métricas generales de otros equipos involucrados en el proyecto):
-    - SonarQube (Administración de proyectos, análisis de código estático, resumen de vulnerabilidades, generación de reporte de cobertura de pruebas y políticas de aceptación previo a pulll request a **"main"**).
-    - Trivy CLI (Escaner de vulnerabilidades en el código estático e imagenes de docker).
-    - DepedencyTrack (OWASP, Inventario del stack para consolidación de vulnerabilidades propias de la tecnología, notificar de dependencias comprometidas y actualizaciones disponibles dentro de la cadena de desarrollo).
+
+- SonarQube (Administración de proyectos, análisis de código estático, resumen de vulnerabilidades, generación de reporte de cobertura de pruebas y políticas de aceptación previo a pulll request a **"main"**).
+- Trivy CLI (Escaner de vulnerabilidades en el código estático e imagenes de docker).
+- DepedencyTrack (OWASP, Inventario del stack para consolidación de vulnerabilidades propias de la tecnología, notificar de dependencias comprometidas y actualizaciones disponibles dentro de la cadena de desarrollo).
 
 ### Testing
 
 El testing se separará en 5 partes requeridas para considerar la aplicación como **"Production Ready"**:
 
 1. Tests unitarios dentro de cada punto del stack (back, brokers, front), se usará **Jest** y **GoLang Testing Nativo**.
-
 2. Test de carga para la capa de API e Integración, se usará **ApacheJMETER**.
-
 3. Test de capa lógica OpenAPI, se usará **Jest** enfocado a los endpoints.
-
 4. Test de seguridad de la aplicación, se usará **ZAP** enfocado a seguridad web y PenTesting automatizado.
-
 5. Test de usuario simulado, se realizará de forma manual en ambiente staging previo a aprobar subida al ambiente productivo.
 
 ### Despliegues
@@ -61,4 +58,12 @@ El enfoque de diseño es arquitectura hexagonal con microservicios, se enfocará
 
 Diagrama:
 
-![Diagrama de arquitectura](diagrams/arquitectura.drawio.svg)
+![Diagrama de arquitectura para sistema real](diagrams/arquitectura.drawio.svg)
+
+## Consideraciones para MVP publicado en VPS (Minimum Viable Product)
+
+1. Frontend: NextJS con autenticación para usuario gerente (POS y dashboard) y usuario cocina (Control de ordenes, Inventario, Ventana de Entrega).
+2. Api-gateway: NodeJS puro con node:http con acceso a colas, caché y DB.
+3. DB: PostgreSQL con optimización de índices para tabla de pedidos.
+4. Caché, Mensajería: Redis como capa de caché para PostgreSQL y Redis Streams para comunicación asíncrona.
+5. Brokers: NodeJS puro con node:http para consumir API de mercado y Golang para procesos de 
