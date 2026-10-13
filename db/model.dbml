@@ -5,7 +5,7 @@ Table ingredients {
 
 Table ingredients_inventory {
   id integer [pk, unique]
-  ingredient integer [ref: - ingredients.id]
+  ingredient_id integer [ref: - ingredients.id]
   quantity integer [default: 0]
 }
 
