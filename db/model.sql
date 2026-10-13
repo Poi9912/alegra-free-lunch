@@ -26,7 +26,7 @@ CREATE TABLE "recipe_ingredients" (
   "id" BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   "recipe_id" integer,
   "ingredient_id" integer,
-  "quantity" ingredient NOT NULL DEFAULT 1
+  "quantity" integer NOT NULL DEFAULT 1
 );
 
 CREATE TABLE "orders" (
@@ -40,12 +40,12 @@ CREATE TABLE "orders" (
 
 CREATE TABLE "inventory_purchase_history" (
   "id" BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  "ingredient" integer,
+  "ingredient_id" integer,
   "quantity" integer NOT NULL DEFAULT 1,
   "purchased_at" timestamp DEFAULT (CURRENT_TIMESTAMP)
 );
 
-ALTER TABLE "ingredients_inventory" ADD FOREIGN KEY ("ingredient") REFERENCES "ingredients" ("id");
+ALTER TABLE "ingredients_inventory" ADD FOREIGN KEY ("ingredient_id") REFERENCES "ingredients" ("id");
 
 ALTER TABLE "recipe_ingredients" ADD FOREIGN KEY ("recipe_id") REFERENCES "recipes" ("id");
 
@@ -53,7 +53,7 @@ ALTER TABLE "recipe_ingredients" ADD FOREIGN KEY ("ingredient_id") REFERENCES "i
 
 ALTER TABLE "orders" ADD FOREIGN KEY ("recipe_id") REFERENCES "recipes" ("id");
 
-ALTER TABLE "inventory_purchase_history" ADD FOREIGN KEY ("ingredient") REFERENCES "ingredients" ("id");
+ALTER TABLE "inventory_purchase_history" ADD FOREIGN KEY ("ingredient_id") REFERENCES "ingredients" ("id");
 
 CREATE INDEX "idx_orders_status" ON "orders" ("status");
 

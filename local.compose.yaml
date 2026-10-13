@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB_FILE: /run/secrets/db_name
+      POSTGRES_USER_FILE: /run/secrets/db_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql
+      - ./db/model.sql:/docker-entrypoint-initdb.d/01-model.sql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/02-init.sql
+    secrets:
+      - db_name
+      - db_user
+      - db_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user) -d $$(cat /run/secrets/db_name)"]
+      interval: 60s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+volumes:
+  pg_data:
+
+secrets:
+  db_name:
+    file: ./db/secrets/db_name.txt
+  db_user:
+    file: ./db/secrets/db_user.txt
+  db_password:
+    file: ./db/secrets/db_password.txt
