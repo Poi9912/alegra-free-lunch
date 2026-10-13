@@ -1,0 +1,26 @@
+{
+  "name": "alegra-free-lunch-api",
+  "version": "1.0.0",
+  "description": "api para sistema de restaurante para jornada gratuita",
+  "keywords": [
+    "alegra",
+    "api",
+    "http",
+    "postgres",
+    "redis"
+  ],
+  "license": "MIT",
+  "author": "Julio Urrego",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "pg": "^8.23.1",
+    "redis": "^6.3.0"
+  },
+  "devDependencies": {
+    "jest": "^30.5.2"
+  }
+}
