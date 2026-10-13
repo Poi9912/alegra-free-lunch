@@ -14,9 +14,9 @@ Table recipes {
   product varchar(255) [not null, unique] 
 }
 
-Table recipie_ingredients {
+Table recipe_ingredients {
   id integer [pk, unique]
-  recipie_id integer [ref: > recipes.id]
+  recipe_id integer [ref: > recipes.id]
   ingredient_id integer [ref: > ingredients.id]
   quantity ingredient [not null, default: 1]
 }

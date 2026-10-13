@@ -56,9 +56,15 @@ El uso de IA se enfocará en código asistido, no se ve valor agregado de un cha
 
 El enfoque de diseño es arquitectura hexagonal con microservicios, se enfocará en 2 frentes, dashboard/pedidos (gerente) y operaciones (inventario/cocina/entregas), se trabajaran grupos de escalado específicos para el front, api, brokers y bases de datos.
 
-Diagrama:
+Diagramas:
+
+Arquitectura:
 
 ![Diagrama de arquitectura para sistema real](diagrams/arquitectura.drawio.svg)
+
+Base de datos:
+
+![Modelo de base de datos](diagrams/database-model.svg)
 
 ## Consideraciones para MVP publicado en VPS (Minimum Viable Product)
 
