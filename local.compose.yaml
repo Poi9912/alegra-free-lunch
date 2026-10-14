@@ -47,6 +47,54 @@ services:
     ports:
       - "3000:3000"
 
+  worker-selector:
+    build:
+      context: ./brokers
+      dockerfile: Dockerfile
+    command: ["node", "recipeSelectorWorker.js"]
+    env_file:
+      - ./brokers/secrets/.env
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
+  worker-purchasing:
+    build:
+      context: ./brokers
+      dockerfile: Dockerfile
+    command: ["node", "purchasingAgentWorker.js"]
+    env_file:
+      - ./brokers/secrets/.env
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
+  worker-cooking:
+    build:
+      context: ./brokers
+      dockerfile: Dockerfile
+    command: ["node", "cookingSimulatorWorker.js"]
+    env_file:
+      - ./brokers/secrets/.env
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
+  worker-delivery:
+    build:
+      context: ./brokers
+      dockerfile: Dockerfile
+    command: ["node", "deliverySimulatorWorker.js"]
+    env_file:
+      - brokers/secrets/.env
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
 volumes:
   pg_data:
   redis_data:

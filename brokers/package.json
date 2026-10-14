@@ -1,0 +1,30 @@
+{
+  "name": "restaurant-brokers",
+  "version": "1.0.0",
+  "description": "Microservicios para gestión de operaciones de cocina para la jornada de almuerzos gratis",
+  "keywords": [
+    "async",
+    "queue",
+    "redis",
+    "postgresql"
+  ],
+  "license": "MIT",
+  "author": "Julio Urrego",
+  "type": "module",
+  "main": "cookingSimulatorWorker.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.7",
+    "pg": "^8.23.1",
+    "redis": "^6.3.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^8.0.7",
+    "@babel/preset-env": "^8.0.7",
+    "babel-jest": "^30.5.2",
+    "jest": "^30.5.2",
+    "jest-silent-reporter": "^0.6.0"
+  }
+}
