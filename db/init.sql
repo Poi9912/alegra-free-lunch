@@ -10,7 +10,7 @@ INSERT INTO ingredients (name) VALUES ('meat');
 INSERT INTO ingredients (name) VALUES ('chicken');
 
 INSERT INTO ingredients_inventory (ingredient_id,quantity)
-SELECT id, 0 FROM ingredients;
+SELECT id, 5 FROM ingredients;
 
 INSERT INTO recipes (product) VALUES ('Arroz con pollo');
 INSERT INTO recipes (product) VALUES ('Bandeja con carne asada');
