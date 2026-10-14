@@ -219,3 +219,11 @@ INSERT INTO recipe_ingredients (recipe_id,ingredient_id,quantity) VALUES (
   (SELECT id FROM ingredients WHERE name='lemon'),
   1
 );
+
+INSERT INTO "users" ("username", "password_hash", "role") 
+VALUES ('manager', '$2b$10$nBEXgYHaoNzBz4Ma9pZyd.A3Rumud.TuuMqtMotOSuNu1mm2et.nm', 'manager')
+ON CONFLICT (username) DO NOTHING;
+
+INSERT INTO "users" ("username", "password_hash", "role") 
+VALUES ('operation', '$2b$10$IbA0CKKHjf1BvBEv1acG2ewQlHRnDq5rput0YlYREHBO2.mEJdm9i', 'operation')
+ON CONFLICT (username) DO NOTHING;

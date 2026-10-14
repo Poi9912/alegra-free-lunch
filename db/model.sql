@@ -45,6 +45,14 @@ CREATE TABLE "inventory_purchase_history" (
   "purchased_at" timestamp DEFAULT (CURRENT_TIMESTAMP)
 );
 
+CREATE TABLE "users" (
+  "id" BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  "username" varchar(255) UNIQUE NOT NULL,
+  "password_hash" varchar(255) NOT NULL,
+  "role" varchar(50) NOT NULL DEFAULT 'manager',
+  "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP)
+);
+
 ALTER TABLE "ingredients_inventory" ADD FOREIGN KEY ("ingredient_id") REFERENCES "ingredients" ("id");
 
 ALTER TABLE "recipe_ingredients" ADD FOREIGN KEY ("recipe_id") REFERENCES "recipes" ("id");
