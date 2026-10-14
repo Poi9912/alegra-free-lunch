@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { dbPool } from '../utils/db.js';
+import { getOrSetCache } from '../utils/cacheHelper.js';
 import { parseJsonBody } from '../utils/parser.js';
 import { sendError } from '../utils/errorHandler.js';
 import { logger } from '../utils/logger.js';
