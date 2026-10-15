@@ -1,0 +1,65 @@
+import 'dotenv/config';
+import { dbPool, redisClient } from './shared/db.js';
+import { logger } from './shared/logger.js';
+import { getRandomDelay } from './shared/timer.js';
+
+const BATCH_COUNT = parseInt(process.env.BATCH_COUNT, 10) || 5;
+
+async function cookOrder(orderId, orderNumber) {
+  try {
+    await dbPool.query(`UPDATE orders SET status = 'cooking', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [orderId]);
+    logger.info(`Order #${orderNumber} is now COOKING...`);
+
+    const cookTime = getRandomDelay(30000, 45000);
+    await new Promise(resolve => setTimeout(resolve, cookTime));
+
+    await dbPool.query(`UPDATE orders SET status = 'ready', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [orderId]);
+    logger.info(`Order #${orderNumber} is READY at the kitchen window!`);
+
+    await redisClient.xAdd('stream:orders:delivery', '*', {
+      orderId: orderId.toString(),
+      orderNumber,
+    });
+  } catch (err) {
+    logger.error(`Error cooking order ${orderNumber}`, err);
+  }
+}
+
+async function start() {
+  await redisClient.xGroupCreate('stream:orders:cooking', 'cooking-group', '0', { MKSTREAM: true }).catch(() => {});
+
+  logger.info(`CookingSimulator worker started with batch concurrency (${BATCH_COUNT}), listening on stream:orders:cooking...`);
+  
+  while (true) {
+    try {
+      const res = await redisClient.xReadGroup(
+        'cooking-group',
+        'worker-cooking',
+        [{ key: 'stream:orders:cooking', id: '>' }],
+        { COUNT: BATCH_COUNT, BLOCK: 5000 }
+      );
+
+      if (res) {
+        for (const stream of res) {
+          // Trigger tasks asynchronously so the polling loop is never blocked
+          stream.messages.forEach((msg) => {
+            const { orderId, orderNumber } = msg.message;
+            
+            cookOrder(orderId, orderNumber)
+              .then(async () => {
+                await redisClient.xAck('stream:orders:cooking', 'cooking-group', msg.id);
+              })
+              .catch((err) => {
+                logger.error(`Failed to process and ack order ${orderNumber}`, err);
+              });
+          });
+        }
+      }
+    } catch (err) {
+      logger.error('CookingSimulator loop error', err);
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+}
+
+start();

@@ -11,32 +11,37 @@ export async function handleApiRoutes(req, res, url) {
     return restaurantController.login(req, res);
   }
 
-  // Protected: Recipes (Accessible by manager & operation)
+  // Protected: Recipes
   if (pathname === '/api/recipes' && method === 'GET') {
     return requireAuth(['manager', 'operation'])(req, res, () => restaurantController.getRecipes(req, res));
   }
 
-  // Protected: Inventory (Accessible by manager & operation)
+  // Protected: Inventory
   if (pathname === '/api/inventory' && method === 'GET') {
     return requireAuth(['manager', 'operation'])(req, res, () => restaurantController.getInventory(req, res));
   }
 
-  // Protected: Purchase History (Accessible by manager & operation)
+  // Protected: Purchase History
   if (pathname === '/api/purchases' && method === 'GET') {
     return requireAuth(['manager', 'operation'])(req, res, () => restaurantController.getPurchaseHistory(req, res));
   }
 
-  // Protected: View Orders (Accessible by manager & operation)
+  // Protected: View Orders
   if (pathname === '/api/orders' && method === 'GET') {
     return requireAuth(['manager', 'operation'])(req, res, () => restaurantController.getOrders(req, res));
   }
 
-  // Protected: Create Order (Manager only)
+  // Protected: Create Batch Orders (Manager Only - replaces single order creation)
   if (pathname === '/api/orders' && method === 'POST') {
-    return requireAuth(['manager'])(req, res, () => restaurantController.createOrder(req, res));
+    return requireAuth(['manager'])(req, res, () => restaurantController.createBatchOrders(req, res));
   }
 
-  // Protected: Update Order Status (Accessible by manager & operation)
+  // Protected: Dashboard Status
+  if (pathname === '/api/status' && method === 'GET') {
+    return requireAuth(['manager', 'operation'])(req, res, () => restaurantController.getStatus(req, res));
+  }
+
+  // Protected: Update Order Status
   const orderStatusMatch = pathname.match(/^\/api\/orders\/(\d+)\/status$/);
   if (orderStatusMatch && method === 'PATCH') {
     const orderId = orderStatusMatch[1];

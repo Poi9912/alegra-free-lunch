@@ -31,7 +31,7 @@ CREATE TABLE "recipe_ingredients" (
 
 CREATE TABLE "orders" (
   "id" BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  "order_number" varchar(255) UNIQUE NOT NULL,
+  "order_number" varchar(255) NOT NULL DEFAULT 'PENDING NUMBER',
   "recipe_id" integer NOT NULL,
   "status" order_status NOT NULL DEFAULT 'created',
   "created_at" timestamp DEFAULT (CURRENT_TIMESTAMP),
