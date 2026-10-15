@@ -1,11 +1,11 @@
 import 'dotenv/config';
-import { dbPool, redisClient } from './shared/db.js';
+import { connectRedisClient, dbPool, redisClient } from './shared/db.js';
 import { logger } from './shared/logger.js';
 
 const EXTERNAL_API = process.env.EXTERNAL_API || 'https://recruitment.alegra.com/api/farmers-market/buy';
 const INVENTORY_CACHE_KEY = 'cache:inventory:status';
 
-async function restockInventory() {
+export async function restockInventory() {
   const client = await dbPool.connect();
   try {
     await client.query('BEGIN');
@@ -111,7 +111,8 @@ async function restockInventory() {
   }
 }
 
-async function start() {
+export async function start() {
+  await connectRedisClient();
   await redisClient.xGroupCreate('stream:inventory:purchase', 'purchase-group', '0', { MKSTREAM: true }).catch(() => {});
 
   logger.info('[PurchasingAgent] Worker started, listening on stream:inventory:purchase...');
@@ -139,4 +140,7 @@ async function start() {
   }
 }
 
-start();
+/* istanbul ignore next */
+if (process.env.NODE_ENV !== 'test') {
+  start();
+}

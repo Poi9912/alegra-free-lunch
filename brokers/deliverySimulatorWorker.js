@@ -1,11 +1,11 @@
 import 'dotenv/config';
-import { dbPool, redisClient } from './shared/db.js';
+import { connectRedisClient, dbPool, redisClient } from './shared/db.js';
 import { logger } from './shared/logger.js';
 import { getRandomDelay } from './shared/timer.js';
 
 const BATCH_COUNT = process.env.BATCH_COUNT || 10;
 
-async function deliverOrder(orderId, orderNumber) {
+export async function deliverOrder(orderId, orderNumber) {
   try {
     logger.info(`Order #${orderNumber} waiting for client pickup/delivery...`);
 
@@ -29,7 +29,8 @@ async function deliverOrder(orderId, orderNumber) {
   }
 }
 
-async function start() {
+export async function start() {
+  await connectRedisClient();
   await redisClient.xGroupCreate('stream:orders:delivery', 'delivery-group', '0', { MKSTREAM: true }).catch(() => {});
 
   logger.info(`DeliverySimulator worker started with batch concurrency (${BATCH_COUNT}), listening on stream:orders:delivery...`);
@@ -61,4 +62,7 @@ async function start() {
   }
 }
 
-start();
+/* istanbul ignore next */
+if (process.env.NODE_ENV !== 'test') {
+  start();
+}
