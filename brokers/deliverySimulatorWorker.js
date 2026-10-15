@@ -3,7 +3,7 @@ import { dbPool, redisClient } from './shared/db.js';
 import { logger } from './shared/logger.js';
 import { getRandomDelay } from './shared/timer.js';
 
-const BATCH_COUNT = process.env.BATCH_COUNT||10;
+const BATCH_COUNT = process.env.BATCH_COUNT || 10;
 
 async function deliverOrder(orderId, orderNumber) {
   try {
@@ -14,6 +14,16 @@ async function deliverOrder(orderId, orderNumber) {
 
     await dbPool.query(`UPDATE orders SET status = 'delivered', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [orderId]);
     logger.info(`Order #${orderNumber} successfully DELIVERED!`);
+
+    // --- NEW: Publish delivered event ---
+    await redisClient.publish(
+      'events:orders',
+      JSON.stringify({
+        type: 'ORDER_UPDATED',
+        data: { id: parseInt(orderId), order_number: orderNumber, status: 'delivered' }
+      })
+    );
+    // -----------------------------------
   } catch (err) {
     logger.error(`Error delivering order ${orderNumber}`, err);
   }

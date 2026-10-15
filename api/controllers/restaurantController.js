@@ -5,6 +5,7 @@ import { getOrSetCache } from '../utils/cacheHelper.js';
 import { sendError } from '../utils/errorHandler.js';
 import { parseJsonBody } from '../utils/parser.js';
 import { logger } from '../utils/logger.js';
+import { broadcastUpdate } from '../utils/websocketManager.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key';
 
@@ -142,27 +143,47 @@ export const restaurantController = {
         return sendError(res, 400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
       }
 
-      const query = `
+      // 1. Update the status in the orders table
+      const updateQuery = `
         UPDATE orders 
         SET status = $1, updated_at = CURRENT_TIMESTAMP 
         WHERE id = $2 
-        RETURNING id, order_number, status, updated_at;
+        RETURNING id;
       `;
-      const { rows } = await dbPool.query(query, [status, orderId]);
+      const { rows } = await dbPool.query(updateQuery, [status, orderId]);
 
       if (rows.length === 0) {
         return sendError(res, 404, 'Order not found');
       }
 
+      // 2. Fetch the complete order record with the joined recipe product name
+      const fetchQuery = `
+        SELECT o.id, o.order_number, r.product, o.status, o.created_at, o.updated_at
+        FROM orders o
+        JOIN recipes r ON o.recipe_id = r.id
+        WHERE o.id = $1;
+      `;
+      const { rows: updatedRows } = await dbPool.query(fetchQuery, [orderId]);
+      const updatedOrder = updatedRows[0];
+
+      // 3. Respond to client and broadcast via Redis Pub/Sub
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: true, data: rows[0] }));
+      res.end(JSON.stringify({ success: true, data: updatedOrder }));
+
+      await redisClient.publish(
+        'events:orders',
+        JSON.stringify({
+          type: 'ORDER_UPDATED',
+          data: updatedOrder,
+        })
+      );
     } catch (err) {
       logger.error('Update order status error', err);
       sendError(res, 500, err.message);
     }
   },
 
-  // NEW: Batch Order Generation (Manager only)
+  // Batch Order Generation (Manager only)
   createBatchOrders: async (req, res) => {
     try {
       const { count } = await parseJsonBody(req);
@@ -181,6 +202,15 @@ export const restaurantController = {
 
       res.writeHead(201, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true, message: `Successfully queued ${orderCount} orders for processing.` }));
+
+      // Publish batch creation event to Redis Pub/Sub
+      await redisClient.publish(
+        'events:orders',
+        JSON.stringify({
+          type: 'ORDERS_CREATED',
+          data: { count: orderCount },
+        })
+      );
     } catch (err) {
       logger.error('Create batch orders error', err);
       sendError(res, 400, err.message);
