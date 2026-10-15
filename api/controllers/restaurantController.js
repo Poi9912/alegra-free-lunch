@@ -5,6 +5,7 @@ import { getOrSetCache } from '../utils/cacheHelper.js';
 import { sendError } from '../utils/errorHandler.js';
 import { parseJsonBody } from '../utils/parser.js';
 import { logger } from '../utils/logger.js';
+import { broadcastUpdate } from '../utils/websocketManager.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key';
 
@@ -156,6 +157,9 @@ export const restaurantController = {
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true, data: rows[0] }));
+
+      const updatedOrder = rows[0];
+      broadcastUpdate('ORDER_UPDATED', updatedOrder);
     } catch (err) {
       logger.error('Update order status error', err);
       sendError(res, 500, err.message);
@@ -181,6 +185,8 @@ export const restaurantController = {
 
       res.writeHead(201, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true, message: `Successfully queued ${orderCount} orders for processing.` }));
+
+      broadcastUpdate('ORDERS_CREATED', { count: orderCount });
     } catch (err) {
       logger.error('Create batch orders error', err);
       sendError(res, 400, err.message);

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export default function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const tokenCookie = request.cookies.get('token');
 
   // If token is missing or invalid, redirect to login
@@ -36,7 +36,7 @@ export default function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Restrict middleware to ONLY run on internal dashboard and API routes
+// Restrict proxy to ONLY run on internal dashboard and API routes
 export const config = {
   matcher: [
     '/dashboard/:path*',

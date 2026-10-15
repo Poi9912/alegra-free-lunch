@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface InventoryItem {
   id: number;
@@ -11,36 +12,49 @@ interface InventoryItem {
 
 const getIngredientColor = (name: string) => {
   const lower = name.toLowerCase();
-  if (lower.includes('tomato')) return '#e22d2d'; // red
-  if (lower.includes('lemon')) return '#a3db4f'; // lime
-  if (lower.includes('potato')) return '#ca8a04'; // darkening yellow
-  if (lower.includes('rice')) return '#c7cace'; // clear gray
-  if (lower.includes('ketchup')) return '#7c1616'; // darkening red
-  if (lower.includes('lettuce')) return '#2ba758'; // green
-  if (lower.includes('onion')) return '#ffed67'; // light yellow
-  if (lower.includes('cheese')) return '#89d3fc'; // light blue
-  if (lower.includes('meat')) return '#b3451a'; // light brown
-  if (lower.includes('chicken')) return '#f7bd7b'; // light orange
-
-  return '#708238'; // Default olive green fallback
+  if (lower.includes('tomato')) return '#e22d2d';
+  if (lower.includes('lemon')) return '#a3db4f';
+  if (lower.includes('potato')) return '#ca8a04';
+  if (lower.includes('rice')) return '#c7cace';
+  if (lower.includes('ketchup')) return '#7c1616';
+  if (lower.includes('lettuce')) return '#2ba758';
+  if (lower.includes('onion')) return '#ffed67';
+  if (lower.includes('cheese')) return '#89d3fc';
+  if (lower.includes('meat')) return '#b3451a';
+  if (lower.includes('chicken')) return '#f7bd7b';
+  return '#708238';
 };
 
 export default function InventoryChart() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchInventory = async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const res = await fetch('/api/inventory');
+      const data = await res.json();
+      const rawList = Array.isArray(data.data) ? data.data : [];
+      const sortedList = rawList.sort((a: InventoryItem, b: InventoryItem) => Number(b.quantity) - Number(a.quantity));
+      setInventory(sortedList);
+    } catch (err) {
+      console.error('Failed to fetch inventory', err);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetch('/api/inventory')
-      .then((res) => res.json())
-      .then((data) => {
-        const rawList = Array.isArray(data.data) ? data.data : [];
-        // Sort from greatest to lowest quantity
-        const sortedList = rawList.sort((a: InventoryItem, b: InventoryItem) => Number(b.quantity) - Number(a.quantity));
-        setInventory(sortedList);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    fetchInventory(false);
   }, []);
+
+  const handleWebSocketMessage = useCallback((type: string) => {
+    if (type === 'INVENTORY_UPDATED') {
+      fetchInventory(true); // Silent update
+    }
+  }, []);
+
+  useWebSocket(handleWebSocketMessage);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-6">
@@ -53,7 +67,6 @@ export default function InventoryChart() {
         <div className="py-12 text-center text-sm text-stone-500">No inventory data available.</div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Recharts Pie Chart (Clean, flawless arcs without manual SVG warping) */}
           <div className="lg:col-span-5 h-64 flex justify-center items-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -79,7 +92,6 @@ export default function InventoryChart() {
             </ResponsiveContainer>
           </div>
 
-          {/* Sorted 2-Column Grid (Large screens) / 1-Column (Small screens) */}
           <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
             {inventory.map((item, i) => {
               const color = getIngredientColor(item.ingredient_name);

@@ -33,7 +33,6 @@ async function restockInventory() {
         if (quantitySold > 0) {
           logger.info(`Successfully purchased ${quantitySold} units of '${ing.name}'.`);
 
-          // Explicit Select-then-Update/Insert to avoid missing unique constraint errors
           const existing = await client.query(
             `SELECT ingredient_id FROM ingredients_inventory WHERE ingredient_id = $1`,
             [ing.id]
@@ -75,6 +74,16 @@ async function restockInventory() {
     if (restockedCount > 0) {
       await redisClient.del(INVENTORY_CACHE_KEY);
       logger.info(`Cleared Redis cache key '${INVENTORY_CACHE_KEY}'.`);
+
+      // --- NEW: Publish real-time inventory update ---
+      await redisClient.publish(
+        'events:inventory',
+        JSON.stringify({
+          type: 'INVENTORY_UPDATED',
+          data: {}
+        })
+      );
+      // ----------------------------------------------
     }
 
     await redisClient.xAdd('stream:inventory:restocked', '*', { timestamp: Date.now().toString() });

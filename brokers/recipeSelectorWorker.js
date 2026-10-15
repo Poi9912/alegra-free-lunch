@@ -56,7 +56,7 @@ async function processIntakeOrder() {
           );
         }
 
-        // Step A: Insert order (order_number defaults to 'PENDING NUMBER') and get generated ID
+        // Step A: Insert order and get generated ID
         const insertOrderQuery = `
           INSERT INTO orders (recipe_id, status)
           VALUES ($1, 'confirmed')
@@ -68,7 +68,7 @@ async function processIntakeOrder() {
         // Step B: Generate the custom order number using the row ID
         const orderNumber = `ORDEN-${orderId}`;
 
-        // Step C: Update order_number column with 'ORDEN-{id}'
+        // Step C: Update order_number column
         await client.query(
           `UPDATE orders SET order_number = $1 WHERE id = $2`,
           [orderNumber, orderId]
@@ -79,6 +79,25 @@ async function processIntakeOrder() {
 
         // Invalidate cache and push to Cooking Queue
         await redisClient.del(INVENTORY_CACHE_KEY);
+
+        // --- NEW: Publish real-time events via Redis Pub/Sub ---
+        await redisClient.publish(
+          'events:orders',
+          JSON.stringify({
+            type: 'ORDERS_CREATED',
+            data: { id: orderId, order_number: orderNumber, product: chosenRecipe.product, status: 'confirmed' }
+          })
+        );
+
+        await redisClient.publish(
+          'events:inventory',
+          JSON.stringify({
+            type: 'INVENTORY_UPDATED',
+            data: {}
+          })
+        );
+        // -------------------------------------------------------
+
         await redisClient.xAdd('stream:orders:cooking', '*', {
           orderId: orderId.toString(),
           orderNumber,
@@ -104,6 +123,7 @@ async function processIntakeOrder() {
           restocked = true;
         }
       }
+
     }
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});

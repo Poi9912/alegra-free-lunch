@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getStatusBadgeStyle, OrderStatus } from './statusConfig';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface Order {
   id: number;
@@ -18,8 +19,8 @@ export default function OrdersTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  const fetchOrders = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch('/api/orders');
       if (!res.ok) throw new Error('Failed to fetch orders');
@@ -30,13 +31,22 @@ export default function OrdersTable() {
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchOrders();
+    fetchOrders(false); // Initial load with loader
   }, []);
+
+  // Real-time synchronization via WebSocket (silent update)
+  const handleWebSocketMessage = useCallback((type: string) => {
+    if (type === 'ORDER_UPDATED' || type === 'ORDERS_CREATED') {
+      fetchOrders(true); // Silent background refresh
+    }
+  }, []);
+
+  useWebSocket(handleWebSocketMessage);
 
   useEffect(() => {
     if (filterStatus === 'all') {
@@ -56,7 +66,7 @@ export default function OrdersTable() {
           <p className="text-xs text-stone-500">Manage and monitor live operational orders</p>
         </div>
         <button
-          onClick={fetchOrders}
+          onClick={() => fetchOrders(false)}
           className="px-3.5 py-2 bg-[#708238] hover:bg-[#5c6e2e] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer self-start sm:self-auto"
         >
           Refresh Table
@@ -83,7 +93,6 @@ export default function OrdersTable() {
 
       {error && <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg">{error}</div>}
 
-      {/* Dynamic size container restricted to max 60% height with vertical scrolling */}
       <div className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden max-h-[50vh] flex flex-col">
         {loading ? (
           <div className="p-12 text-center text-sm text-stone-500">Loading orders...</div>

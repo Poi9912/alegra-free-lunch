@@ -7,14 +7,36 @@ const BATCH_COUNT = parseInt(process.env.BATCH_COUNT, 10) || 5;
 
 async function cookOrder(orderId, orderNumber) {
   try {
+    // 1. Status -> Cooking
     await dbPool.query(`UPDATE orders SET status = 'cooking', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [orderId]);
     logger.info(`Order #${orderNumber} is now COOKING...`);
+
+    // --- NEW: Publish cooking event ---
+    await redisClient.publish(
+      'events:orders',
+      JSON.stringify({
+        type: 'ORDER_UPDATED',
+        data: { id: parseInt(orderId), order_number: orderNumber, status: 'cooking' }
+      })
+    );
+    // ---------------------------------
 
     const cookTime = getRandomDelay(30000, 45000);
     await new Promise(resolve => setTimeout(resolve, cookTime));
 
+    // 2. Status -> Ready
     await dbPool.query(`UPDATE orders SET status = 'ready', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [orderId]);
     logger.info(`Order #${orderNumber} is READY at the kitchen window!`);
+
+    // --- NEW: Publish ready event ---
+    await redisClient.publish(
+      'events:orders',
+      JSON.stringify({
+        type: 'ORDER_UPDATED',
+        data: { id: parseInt(orderId), order_number: orderNumber, status: 'ready' }
+      })
+    );
+    // -------------------------------
 
     await redisClient.xAdd('stream:orders:delivery', '*', {
       orderId: orderId.toString(),
@@ -41,7 +63,6 @@ async function start() {
 
       if (res) {
         for (const stream of res) {
-          // Trigger tasks asynchronously so the polling loop is never blocked
           stream.messages.forEach((msg) => {
             const { orderId, orderNumber } = msg.message;
             

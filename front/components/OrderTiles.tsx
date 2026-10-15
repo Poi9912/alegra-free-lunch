@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getStatusBadgeStyle, OrderStatus } from './statusConfig';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface Order {
   id: number;
@@ -22,7 +23,8 @@ export default function OrderTiles({ allowedStatuses, showAction = false, nextSt
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch('/api/orders');
       if (!res.ok) throw new Error('Failed to fetch orders');
@@ -32,15 +34,21 @@ export default function OrderTiles({ allowedStatuses, showAction = false, nextSt
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 5000); // Polling for live updates
-    return () => clearInterval(interval);
+    fetchOrders(false);
   }, []);
+
+  const handleWebSocketMessage = useCallback((type: string) => {
+    if (type === 'ORDER_UPDATED' || type === 'ORDERS_CREATED') {
+      fetchOrders(true); // Silent update
+    }
+  }, []);
+
+  useWebSocket(handleWebSocketMessage);
 
   const handleAdvanceStatus = async (orderId: number) => {
     if (!nextStatus) return;
@@ -51,7 +59,7 @@ export default function OrderTiles({ allowedStatuses, showAction = false, nextSt
         body: JSON.stringify({ status: nextStatus }),
       });
       if (res.ok) {
-        fetchOrders();
+        fetchOrders(true);
       }
     } catch (err) {
       console.error('Failed to update status', err);
