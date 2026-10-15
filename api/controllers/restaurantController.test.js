@@ -1,13 +1,16 @@
 const { EventEmitter } = require('node:events');
 
 const dbPool = { query: jest.fn() };
+const redisClient = { xAdd: jest.fn(), publish: jest.fn() };
 const getOrSetCache = jest.fn();
 const compare = jest.fn();
 const sign = jest.fn();
 const logger = { error: jest.fn(), info: jest.fn() };
+const broadcastUpdate = jest.fn();
 
-jest.doMock('../utils/db.js', () => ({ dbPool }));
+jest.doMock('../utils/db.js', () => ({ dbPool, redisClient }));
 jest.doMock('../utils/cacheHelper.js', () => ({ getOrSetCache }));
+jest.doMock('../utils/websocketManager.js', () => ({ broadcastUpdate }));
 jest.doMock('bcryptjs', () => ({
   __esModule: true,
   default: { compare },
@@ -234,12 +237,15 @@ describe('restaurantController', () => {
 
     expect(dbPool.query).not.toHaveBeenCalled();
     expect(res.writeHead).toHaveBeenCalledWith(400, { 'Content-Type': 'application/json' });
-    expect(responseBody(res).error).toContain('Invalid status value');
+    expect(responseBody(res).error).toContain('Invalid status.');
   });
 
   test('updates valid order statuses and returns the updated order', async () => {
     const order = { id: 42, order_number: 'A42', status: 'ready' };
-    dbPool.query.mockResolvedValue({ rows: [order] });
+    dbPool.query
+      .mockResolvedValueOnce({ rows: [{ id: 42 }] })
+      .mockResolvedValueOnce({ rows: [order] });
+    redisClient.publish.mockResolvedValue(1);
     const { req, send } = request({ status: 'ready' });
     const res = response();
     const result = restaurantController.updateOrderStatus(req, res, '42');
@@ -247,8 +253,12 @@ describe('restaurantController', () => {
     await result;
 
     expect(dbPool.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE orders'), ['ready', '42']);
-    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('status updated to ready'));
+    expect(dbPool.query).toHaveBeenCalledTimes(2);
     expect(responseBody(res)).toEqual({ success: true, data: order });
+    expect(redisClient.publish).toHaveBeenCalledWith(
+      'events:orders',
+      JSON.stringify({ type: 'ORDER_UPDATED', data: order })
+    );
   });
 
   test('returns 404 when the order to update does not exist', async () => {
@@ -272,5 +282,64 @@ describe('restaurantController', () => {
 
     expect(logger.error).toHaveBeenCalledWith('Update order status error', expect.any(Error));
     expect(responseBody(res)).toEqual({ success: false, error: 'update failed' });
+  });
+
+  test('queues a requested batch and publishes its creation event', async () => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1234);
+    redisClient.xAdd.mockResolvedValue('stream-id');
+    redisClient.publish.mockResolvedValue(1);
+    const { req, send } = request({ count: '2' });
+    const res = response();
+    const result = restaurantController.createBatchOrders(req, res);
+    send();
+    await result;
+
+    expect(redisClient.xAdd).toHaveBeenNthCalledWith(1, 'stream:orders:intake', '*', {
+      orderNumber: 'ORD-1234-1',
+      batchId: 'batch-1234',
+    });
+    expect(redisClient.xAdd).toHaveBeenNthCalledWith(2, 'stream:orders:intake', '*', {
+      orderNumber: 'ORD-1234-2',
+      batchId: 'batch-1234',
+    });
+    expect(res.writeHead).toHaveBeenCalledWith(201, { 'Content-Type': 'application/json' });
+    expect(responseBody(res)).toEqual({
+      success: true,
+      message: 'Successfully queued 2 orders for processing.',
+    });
+    expect(redisClient.publish).toHaveBeenCalledWith(
+      'events:orders',
+      JSON.stringify({ type: 'ORDERS_CREATED', data: { count: 2 } })
+    );
+    now.mockRestore();
+  });
+
+  test.each([
+    ['invalid count', 'not-a-number', 1],
+    ['zero count', '0', 1],
+  ])('defaults to one order for %s', async (_case, count, expectedCount) => {
+    redisClient.xAdd.mockResolvedValue('stream-id');
+    redisClient.publish.mockResolvedValue(1);
+    const { req, send } = request({ count });
+    const res = response();
+    const result = restaurantController.createBatchOrders(req, res);
+    send();
+    await result;
+
+    expect(redisClient.xAdd).toHaveBeenCalledTimes(expectedCount);
+    expect(responseBody(res).message).toBe('Successfully queued 1 orders for processing.');
+  });
+
+  test('reports batch queue failures as bad requests', async () => {
+    redisClient.xAdd.mockRejectedValue(new Error('stream unavailable'));
+    const { req, send } = request({ count: 1 });
+    const res = response();
+    const result = restaurantController.createBatchOrders(req, res);
+    send();
+    await result;
+
+    expect(logger.error).toHaveBeenCalledWith('Create batch orders error', expect.any(Error));
+    expect(res.writeHead).toHaveBeenCalledWith(400, { 'Content-Type': 'application/json' });
+    expect(responseBody(res)).toEqual({ success: false, error: 'stream unavailable' });
   });
 });

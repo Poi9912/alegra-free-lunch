@@ -13,7 +13,8 @@
   "type": "module",
   "main": "cookingSimulatorWorker.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node ./node_modules/jest/bin/jest.js --runInBand",
+    "test:coverage": "npm test -- --coverage"
   },
   "dependencies": {
     "dotenv": "^18.0.7",

@@ -4,7 +4,8 @@ const controller = {
   getInventory: jest.fn(),
   getPurchaseHistory: jest.fn(),
   getOrders: jest.fn(),
-  createOrder: jest.fn(),
+  createBatchOrders: jest.fn(),
+  getStatus: jest.fn(),
   updateOrderStatus: jest.fn(),
 };
 const authCalls = [];
@@ -45,9 +46,9 @@ describe('handleApiRoutes', () => {
     ['/api/inventory', 'getInventory', ['manager', 'operation']],
     ['/api/purchases', 'getPurchaseHistory', ['manager', 'operation']],
     ['/api/orders', 'getOrders', ['manager', 'operation']],
-    ['/api/orders', 'createOrder', ['manager']],
+    ['/api/orders', 'createBatchOrders', ['manager']],
   ])('routes the protected endpoint %s with its allowed roles', async (path, handler, roles) => {
-    const method = handler === 'createOrder' ? 'POST' : 'GET';
+    const method = handler === 'createBatchOrders' ? 'POST' : 'GET';
     const req = { method };
     const res = response();
 
@@ -55,6 +56,16 @@ describe('handleApiRoutes', () => {
 
     expect(authCalls).toEqual([roles]);
     expect(controller[handler]).toHaveBeenCalledWith(req, res);
+  });
+
+  test('routes dashboard status with manager and operation roles', async () => {
+    const req = { method: 'GET' };
+    const res = response();
+
+    await handleApiRoutes(req, res, new URL('http://localhost/api/status'));
+
+    expect(authCalls).toEqual([['manager', 'operation']]);
+    expect(controller.getStatus).toHaveBeenCalledWith(req, res);
   });
 
   test('passes the order id to the status update handler', async () => {
