@@ -11,10 +11,25 @@ async function restockInventory() {
     await client.query('BEGIN');
     logger.info('[PurchasingAgent] Stock shortage detected. Querying external farmers market API...');
 
-    const { rows: ingredients } = await client.query('SELECT id, name FROM ingredients;');
+    // Only select ingredients where current stock is lower than 5 (or missing from inventory)
+    const query = `
+      SELECT i.id, i.name, COALESCE(inv.quantity, 0) AS current_quantity
+      FROM ingredients i
+      LEFT JOIN ingredients_inventory inv ON i.id = inv.ingredient_id
+      WHERE COALESCE(inv.quantity, 0) < 5;
+    `;
+    const { rows: lowStockIngredients } = await client.query(query);
+
+    if (lowStockIngredients.length === 0) {
+      logger.info('[PurchasingAgent] No ingredients below stock threshold of 5. Skipping purchases.');
+      await client.query('COMMIT');
+      return;
+    }
+
+    logger.info(`[PurchasingAgent] Found ${lowStockIngredients.length} ingredients with stock < 5.`);
     let restockedCount = 0;
 
-    for (const ing of ingredients) {
+    for (const ing of lowStockIngredients) {
       await client.query('SAVEPOINT ingredient_sp');
 
       try {
@@ -75,7 +90,7 @@ async function restockInventory() {
       await redisClient.del(INVENTORY_CACHE_KEY);
       logger.info(`Cleared Redis cache key '${INVENTORY_CACHE_KEY}'.`);
 
-      // --- NEW: Publish real-time inventory update ---
+      // Publish real-time inventory update
       await redisClient.publish(
         'events:inventory',
         JSON.stringify({
@@ -83,7 +98,6 @@ async function restockInventory() {
           data: {}
         })
       );
-      // ----------------------------------------------
     }
 
     await redisClient.xAdd('stream:inventory:restocked', '*', { timestamp: Date.now().toString() });

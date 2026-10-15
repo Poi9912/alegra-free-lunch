@@ -1,0 +1,12 @@
+node_modules
+README.md
+Dockerfile
+.dockerignore
+.env*
+*.local
+.DS_Store
+logs
+data
+.next
+build
+coverage

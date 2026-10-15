@@ -1,11 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import OrdersTable from '@components/OrdersTable';
 import InventoryChart from '@components/InventoryChart';
 import OrderTiles from '@components/OrderTiles';
 import BatchOrderModal from '@components/BatchOrderModal';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { OrderStatus } from '@components/statusConfig';
+
+interface Order {
+  id: number;
+  order_number: string;
+  product: string;
+  status: OrderStatus;
+  created_at: string;
+}
 
 interface Recipe {
   id: number;
@@ -17,23 +27,68 @@ export default function DashboardPage() {
   const [role, setRole] = useState<string>('operation');
   const [activeTab, setActiveTab] = useState<number>(1);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState<boolean>(true);
   const router = useRouter();
+
+  const fetchOrders = async (silent = false) => {
+    if (!silent) setLoadingOrders(true);
+    try {
+      const res = await fetch('/api/orders', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch orders');
+      const data = await res.json();
+      setOrders(Array.isArray(data.data) ? data.data : []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      if (!silent) setLoadingOrders(false);
+    }
+  };
 
   useEffect(() => {
     const userRole = localStorage.getItem('role') || 'operation';
     setRole(userRole);
+    fetchOrders(false);
 
-    if (userRole === 'manager') {
-      // Manager default view setup
-    } else {
-      // Fetch recipes for Operation Tab 2
-      fetch('/api/recipes')
+    // Resilient background polling every 3 seconds to guarantee real-time sync across tabs
+    const pollInterval = setInterval(() => {
+      fetchOrders(true);
+    }, 3000);
+
+    if (userRole !== 'manager') {
+      fetch('/api/recipes', { cache: 'no-store' })
         .then((res) => res.json())
         .then((data) => setRecipes(Array.isArray(data.data) ? data.data : []))
         .catch(() => {});
     }
+
+    return () => clearInterval(pollInterval);
   }, []);
+
+  // WebSocket instant sync listener
+  const handleWebSocketMessage = useCallback((type: string) => {
+    if (type === 'ORDER_UPDATED' || type === 'ORDERS_CREATED') {
+      fetchOrders(true);
+    }
+  }, []);
+
+  useWebSocket(handleWebSocketMessage);
+
+  const handleAdvanceStatus = async (orderId: number, targetStatus: OrderStatus) => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: targetStatus }),
+      });
+      if (res.ok) {
+        fetchOrders(true);
+      }
+    } catch (err) {
+      console.error('Failed to update status', err);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.clear();
@@ -118,47 +173,53 @@ export default function DashboardPage() {
             </div>
 
             {/* Tab 1 Content */}
-            {activeTab === 1 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold text-stone-900">Active Kitchen Orders</h3>
-                <OrderTiles allowedStatuses={['confirmed', 'cooking']} showAction={true} nextStatus="cooking" actionLabel="Start Cooking / Advance" />
-              </div>
-            )}
+            <div className={activeTab === 1 ? 'space-y-4' : 'hidden'}>
+              <h3 className="text-lg font-bold text-stone-900">Active Kitchen Orders</h3>
+              <OrderTiles
+                orders={orders}
+                loading={loadingOrders}
+                allowedStatuses={['confirmed', 'cooking']}
+                showAction={true}
+                onAdvanceStatus={handleAdvanceStatus}
+              />
+            </div>
 
             {/* Tab 2 Content */}
-            {activeTab === 2 && (
-              <div className="space-y-8">
-                <InventoryChart />
-                <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-6">
-                  <h3 className="text-lg font-bold text-stone-900 mb-4">Today's Available Recipes</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {recipes.map((r) => (
-                      <div key={r.id} className="border border-stone-200 rounded-lg p-4">
-                        <h4 className="font-bold text-stone-800 text-sm mb-2">{r.product}</h4>
-                        <ul className="text-xs text-stone-500 space-y-1">
-                          {r.ingredients.map((ing, idx) => (
-                            <li key={idx}>• {ing.ingredient_name}: {ing.quantity} units</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
+            <div className={activeTab === 2 ? 'space-y-8' : 'hidden'}>
+              <InventoryChart />
+              <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-6">
+                <h3 className="text-lg font-bold text-stone-900 mb-4">Today's Available Recipes</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {recipes.map((r) => (
+                    <div key={r.id} className="border border-stone-200 rounded-lg p-4">
+                      <h4 className="font-bold text-stone-800 text-sm mb-2">{r.product}</h4>
+                      <ul className="text-xs text-stone-500 space-y-1">
+                        {r.ingredients.map((ing, idx) => (
+                          <li key={idx}>{ing.ingredient_name}: {ing.quantity} units</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Tab 3 Content */}
-            {activeTab === 3 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold text-stone-900">Ready for Delivery</h3>
-                <OrderTiles allowedStatuses={['ready']} showAction={true} nextStatus="delivered" actionLabel="Mark Delivered" />
-              </div>
-            )}
+            <div className={activeTab === 3 ? 'space-y-4' : 'hidden'}>
+              <h3 className="text-lg font-bold text-stone-900">Ready for Delivery</h3>
+              <OrderTiles
+                orders={orders}
+                loading={loadingOrders}
+                allowedStatuses={['ready']}
+                showAction={true}
+                onAdvanceStatus={handleAdvanceStatus}
+              />
+            </div>
           </div>
         )}
       </main>
 
-      <BatchOrderModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={() => window.location.reload()} />
+      <BatchOrderModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={() => setIsModalOpen(false)} />
     </div>
   );
 }

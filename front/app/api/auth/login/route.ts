@@ -6,9 +6,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Default backend base URL includes /api prefix on port 3000
-    const backendBase = process.env.BACKEND_URL || 'http://localhost:3000/api';
+    const backendBase = process.env.BACKEND_URL || 'http://localhost:3000';
 
-    const backendRes = await fetch(`${backendBase}/login`, {
+    const backendRes = await fetch(`${backendBase}/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

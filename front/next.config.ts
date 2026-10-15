@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
-const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000/api';
+const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'standalone',
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
