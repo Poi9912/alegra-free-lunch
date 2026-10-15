@@ -1,72 +1,97 @@
 import 'dotenv/config';
 import { dbPool, redisClient } from './shared/db.js';
+import { logger } from './shared/logger.js';
 
 const EXTERNAL_API = process.env.EXTERNAL_API || 'https://recruitment.alegra.com/api/farmers-market/buy';
+const INVENTORY_CACHE_KEY = 'cache:inventory:status';
 
 async function restockInventory() {
   const client = await dbPool.connect();
   try {
     await client.query('BEGIN');
-    console.log('[PurchasingAgent] Stock shortage detected. Querying external farmers market API...');
+    logger.info('[PurchasingAgent] Stock shortage detected. Querying external farmers market API...');
 
-    // 1. Fetch all ingredients (id and name) from the database
     const { rows: ingredients } = await client.query('SELECT id, name FROM ingredients;');
+    let restockedCount = 0;
 
     for (const ing of ingredients) {
-      try {
-        // Construct the URL with the ingredient query parameter matching the database name
-        const url = `${EXTERNAL_API}?ingredient=${encodeURIComponent(ing.name)}`;
-        console.log(`[PurchasingAgent] Requesting ingredient '${ing.name}' from market: ${url}`);
+      await client.query('SAVEPOINT ingredient_sp');
 
+      try {
+        const url = `${EXTERNAL_API}?ingredient=${encodeURIComponent(ing.name)}`;
         const response = await fetch(url);
+        
         if (!response.ok) {
-          console.error(`[PurchasingAgent] Market API error for ${ing.name}: HTTP ${response.status}`);
+          logger.error(`Market API error for '${ing.name}': HTTP ${response.status}`);
+          await client.query('ROLLBACK TO SAVEPOINT ingredient_sp');
           continue;
         }
 
         const data = await response.json();
         const quantitySold = data.quantitySold || 0;
 
-        // If quantitySold is greater than 0, add to inventory and log purchase history
         if (quantitySold > 0) {
-          console.log(`[PurchasingAgent] Successfully purchased ${quantitySold} units of '${ing.name}'.`);
+          logger.info(`Successfully purchased ${quantitySold} units of '${ing.name}'.`);
 
-          // Update inventory
-          await client.query(
-            `INSERT INTO ingredients_inventory (ingredient_id, quantity) 
-             VALUES ($1, $2)
-             ON CONFLICT (ingredient_id) DO UPDATE SET quantity = ingredients_inventory.quantity + $2`,
-            [ing.id, quantitySold]
+          // Explicit Select-then-Update/Insert to avoid missing unique constraint errors
+          const existing = await client.query(
+            `SELECT ingredient_id FROM ingredients_inventory WHERE ingredient_id = $1`,
+            [ing.id]
           );
+
+          if (existing.rows.length > 0) {
+            await client.query(
+              `UPDATE ingredients_inventory SET quantity = quantity + $2 WHERE ingredient_id = $1`,
+              [ing.id, quantitySold]
+            );
+          } else {
+            await client.query(
+              `INSERT INTO ingredients_inventory (ingredient_id, quantity) VALUES ($1, $2)`,
+              [ing.id, quantitySold]
+            );
+          }
 
           // Log purchase history
           await client.query(
             `INSERT INTO inventory_purchase_history (ingredient_id, quantity) VALUES ($1, $2)`,
             [ing.id, quantitySold]
           );
+
+          restockedCount++;
+          await client.query('RELEASE SAVEPOINT ingredient_sp');
         } else {
-          console.log(`[PurchasingAgent] Ingredient '${ing.name}' is currently unavailable in the market (quantitySold: 0).`);
+          logger.info(`Ingredient '${ing.name}' is currently unavailable in the market (quantitySold: 0).`);
+          await client.query('RELEASE SAVEPOINT ingredient_sp');
         }
-      } catch (apiErr) {
-        console.error(`[PurchasingAgent] Network/Parsing error for ingredient '${ing.name}':`, apiErr.message);
+      } catch (itemErr) {
+        await client.query('ROLLBACK TO SAVEPOINT ingredient_sp');
+        logger.error(`Error/Parsing error for ingredient '${ing.name}'`, itemErr);
       }
     }
 
     await client.query('COMMIT');
-    console.log('[PurchasingAgent] Restock operation completed successfully.');
+    logger.info('[PurchasingAgent] Restock transaction committed successfully.');
+
+    if (restockedCount > 0) {
+      await redisClient.del(INVENTORY_CACHE_KEY);
+      logger.info(`Cleared Redis cache key '${INVENTORY_CACHE_KEY}'.`);
+    }
+
+    await redisClient.xAdd('stream:inventory:restocked', '*', { timestamp: Date.now().toString() });
+    logger.info('[PurchasingAgent] Sent restock signal to stream:inventory:restocked.');
+
   } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('[PurchasingAgent] Restock transaction failed:', err.message);
+    await client.query('ROLLBACK').catch(() => {});
+    logger.error('[PurchasingAgent] Restock transaction failed', err);
   } finally {
     client.release();
   }
 }
 
 async function start() {
-  // Ensure consumer group exists for the stock purchase stream
   await redisClient.xGroupCreate('stream:inventory:purchase', 'purchase-group', '0', { MKSTREAM: true }).catch(() => {});
 
-  console.log('[PurchasingAgent] Worker started, listening on stream:inventory:purchase...');
+  logger.info('[PurchasingAgent] Worker started, listening on stream:inventory:purchase...');
   while (true) {
     try {
       const res = await redisClient.xReadGroup(
@@ -85,7 +110,7 @@ async function start() {
         }
       }
     } catch (err) {
-      console.error('[PurchasingAgent] Stream loop error:', err);
+      logger.error('[PurchasingAgent] Stream loop error', err);
       await new Promise(r => setTimeout(r, 3000));
     }
   }
