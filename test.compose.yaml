@@ -9,8 +9,6 @@ services:
       - pg_data:/var/lib/postgresql
       - ./db/model.sql:/docker-entrypoint-initdb.d/01-model.sql
       - ./db/init.sql:/docker-entrypoint-initdb.d/02-init.sql
-    networks:
-      - internal-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d${DB_NAME}"]
@@ -24,8 +22,6 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
-    networks:
-      - internal-net
     restart: unless-stopped
   api:
     #image: alegra-api:latest
@@ -40,8 +36,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       REDIS_URL: ${REDIS_URL}
       JWT_SECRET: ${JWT_SECRET}
-    networks:
-      - internal-net
     depends_on:
       - db
       - redis
@@ -61,8 +55,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       REDIS_URL: ${REDIS_URL}
       BATCH_COUNT: ${BATCH_COUNT}
-    networks:
-      - internal-net
     depends_on:
       - db
       - redis
@@ -83,8 +75,6 @@ services:
       REDIS_URL: ${REDIS_URL}
       EXTERNAL_API: ${EXTERNAL_API}
       BATCH_COUNT: ${BATCH_COUNT}
-    networks:
-      - internal-net
     depends_on:
       - db
       - redis
@@ -104,8 +94,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       REDIS_URL: ${REDIS_URL}
       BATCH_COUNT: ${BATCH_COUNT}
-    networks:
-      - internal-net
     depends_on:
       - db
       - redis
@@ -125,8 +113,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       REDIS_URL: ${REDIS_URL}
       BATCH_COUNT: ${BATCH_COUNT}
-    networks:
-      - internal-net
     depends_on:
       - db
       - redis
@@ -144,9 +130,6 @@ services:
       BACKEND_URL: http://api:3000
     ports:
       - "4000:3000"
-    networks:
-      - internal-net
-      - external-net
     depends_on:
       - api
     restart: unless-stopped
@@ -154,10 +137,3 @@ services:
 volumes:
   pg_data:
   redis_data:
-
-networks:
-  internal-net:
-    driver: overlay
-    internal: true
-  external-net:
-    driver: bridge
