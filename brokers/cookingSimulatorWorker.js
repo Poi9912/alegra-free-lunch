@@ -1,11 +1,11 @@
 import 'dotenv/config';
-import { connectRedisClient, dbPool, redisClient } from './shared/db.js';
+import { dbPool, redisClient } from './shared/db.js';
 import { logger } from './shared/logger.js';
 import { getRandomDelay } from './shared/timer.js';
 
 const BATCH_COUNT = parseInt(process.env.BATCH_COUNT, 10) || 5;
 
-export async function cookOrder(orderId, orderNumber) {
+async function cookOrder(orderId, orderNumber) {
   try {
     // 1. Status -> Cooking
     await dbPool.query(`UPDATE orders SET status = 'cooking', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [orderId]);
@@ -47,8 +47,7 @@ export async function cookOrder(orderId, orderNumber) {
   }
 }
 
-export async function start() {
-  await connectRedisClient();
+async function start() {
   await redisClient.xGroupCreate('stream:orders:cooking', 'cooking-group', '0', { MKSTREAM: true }).catch(() => {});
 
   logger.info(`CookingSimulator worker started with batch concurrency (${BATCH_COUNT}), listening on stream:orders:cooking...`);
@@ -84,7 +83,4 @@ export async function start() {
   }
 }
 
-/* istanbul ignore next */
-if (process.env.NODE_ENV !== 'test') {
-  start();
-}
+start();

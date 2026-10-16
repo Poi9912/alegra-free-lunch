@@ -1,10 +1,10 @@
 import 'dotenv/config';
-import { connectRedisClient, dbPool, redisClient } from './shared/db.js';
+import { dbPool, redisClient } from './shared/db.js';
 import { logger } from './shared/logger.js';
 
 const INVENTORY_CACHE_KEY = 'cache:inventory:status';
 
-export async function getInventory(client) {
+async function getInventory(client) {
   try {
     const cachedData = await redisClient.get(INVENTORY_CACHE_KEY);
     if (cachedData) {
@@ -20,7 +20,7 @@ export async function getInventory(client) {
   return new Map(inventoryRows.map(i => [i.ingredient_id, i.quantity]));
 }
 
-export async function processIntakeOrder() {
+async function processIntakeOrder() {
   const client = await dbPool.connect();
   try {
     while (true) {
@@ -134,8 +134,7 @@ export async function processIntakeOrder() {
   }
 }
 
-export async function start() {
-  await connectRedisClient();
+async function start() {
   await redisClient.xGroupCreate('stream:orders:intake', 'recipe-group', '0', { MKSTREAM: true }).catch(() => {});
   
   logger.info('[RecipeSelector] Worker started, listening on stream:orders:intake...');
@@ -159,7 +158,4 @@ export async function start() {
   }
 }
 
-/* istanbul ignore next */
-if (process.env.NODE_ENV !== 'test') {
-  start();
-}
+start();
