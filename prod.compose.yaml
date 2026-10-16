@@ -172,7 +172,7 @@ services:
       restart_policy:
         condition: on-failure
     expose:
-      3000
+      - 3000
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.alegra-front.rule=Host(`alegra.${BASE_DOMAIN}`)"
