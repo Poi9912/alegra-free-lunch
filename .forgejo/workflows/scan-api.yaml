@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  scan:
+  scan-api:
     runs-on: docker
     container:
       image: quay.io/podman/stable
@@ -51,6 +51,8 @@ jobs:
 
       - name: SonarQube Scan
         uses: https://github.com/sonarsource/sonarqube-scan-action@master
+        with:
+          projectBaseDir: front
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_URL }}
