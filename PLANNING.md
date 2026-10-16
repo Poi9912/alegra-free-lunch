@@ -24,7 +24,7 @@
 
 ### Frontend
 
-Se requiere acceso con autenticación del gerente, se generará una capa de seguridad, adicional se requiere ver en tiempo real los pedidos e inventario, se usará un framework con capacidad de SSR y CSR mixtas para entregar una experiencia rápida y responsiva, el candidato ideal para este despliegue mínimo es Next.JS
+Se requiere acceso con autenticación del gerente, se generará una capa de seguridad (proxy), adicional se requiere ver en tiempo real los pedidos e inventario, se usará un framework con capacidad de SSR, CSR, SSE para entregar una experiencia rápida y responsiva, el candidato ideal para este despliegue mínimo es Next.JS
 
 ### Code Coverage, deuda técnica y vulnerabilidades
 
@@ -38,7 +38,7 @@ Validación de código y vulnerabilidades, las herramientas dedicadas a este pro
 
 El testing se separará en 5 partes requeridas para considerar la aplicación como **"Production Ready"**:
 
-1. Tests unitarios dentro de cada punto del stack (back, brokers, front), se usará **Jest** y **GoLang Testing Nativo**.
+1. Tests unitarios dentro de cada punto del stack (back, brokers, front), se usará **Jest**.
 2. Test de carga para la capa de API e Integración, se usará **ApacheJMETER**.
 3. Test de capa lógica OpenAPI, se usará **Jest** enfocado a los endpoints.
 4. Test de seguridad de la aplicación, se usará **ZAP** enfocado a seguridad web y PenTesting automatizado.
@@ -50,7 +50,7 @@ Se requiere despliegue en un ambiente disponible desde internet, al ya contar co
 
 ## Implementación de IA
 
-El uso de IA se enfocará en código asistido, no se ve valor agregado de un chatBot o un agente conectado a la aplicación para solo una jornada de almuerzo gratis, no hay posibilidad de retorno de costo en esta aplicación.
+El uso de IA se enfocará en código asistido en el front y montaje de tests unitarios, no se ve valor agregado de un chatBot o un agente conectado a la aplicación para solo una jornada de almuerzo gratis, no hay posibilidad de retorno de costo en esta aplicación.
 
 ## Arquitectura
 
@@ -72,4 +72,4 @@ Base de datos:
 2. Api-gateway: NodeJS puro con node:http con acceso a colas, caché y DB.
 3. DB: PostgreSQL con optimización de índices para tabla de pedidos.
 4. Caché, Mensajería: Redis como capa de caché para PostgreSQL y Redis Streams para comunicación asíncrona.
-5. Brokers: NodeJS puro con node:http para consumir API de mercado y Golang para procesos internos de inventario, pedidos y estado de pedidos.
+5. Brokers: NodeJS puro con node:http para consumir API de mercado y Golang para procesos internos de inventario, pedidos y estado de pedidos, se simula como si la cocina confirmara los pedidos, los marca como cocinando, listos y entregados.
