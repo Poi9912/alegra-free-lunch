@@ -60,7 +60,7 @@ jobs:
       - name: Generate SBOM via Trivy CLI
         run: |
           cd api &&  curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-          cd api &&  trivy fs --format cyclonedx --output sbom.json .
+          trivy fs --format cyclonedx --output sbom.json .
 
       - name: Upload SBOM to Dependency-Track
         env:
