@@ -10,6 +10,16 @@ on:
       - '*compose.yaml'
     paths:
       - 'api/**'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+      - 'PLANNING.md'
+      - '*compose.yaml'
+    paths:
+      - 'api/**'
   workflow_call:
 
 jobs:

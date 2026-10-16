@@ -10,6 +10,16 @@ on:
       - '*compose.yaml'
     paths:
       - 'brokers/**'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+      - 'PLANNING.md'
+      - '*compose.yaml'
+    paths:
+      - 'brokers/**'
   workflow_call:
 
 jobs:
