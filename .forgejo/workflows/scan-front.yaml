@@ -40,11 +40,9 @@ jobs:
           fetch-depth: 0
 
       - name: Install dependencies for coverage
-        working-directory: front
-        run: npm ci --include=dev
+        run: cd front && npm ci --include=dev
       - name: Run tests
-        working-directory: front
-        run: npm run test:coverage
+        run: cd front && npm run test:coverage
 
       - name: Debug URL Variables
         run: |
@@ -59,13 +57,11 @@ jobs:
           SONAR_HOST_URL: ${{ vars.SONAR_URL }}
 
       - name: Generate SBOM via Trivy CLI
-        working-directory: front
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-          trivy fs --format cyclonedx --output sbom.json .
+          cd front && curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+          cd front && trivy fs --format cyclonedx --output sbom.json .
 
       - name: Upload SBOM to Dependency-Track
-        working-directory: front
         env:
           DTRACK_API_KEY: ${{ secrets.DTRACK_API_KEY }}
           DTRACK_API_URL: ${{ vars.DTRACK_API_URL }}
@@ -83,7 +79,7 @@ jobs:
           CALL_URL="${DTRACK_API_URL}/api/v1/bom"
           echo "Uploading SBOM to: ${CALL_URL}"
 
-          curl -X "POST" "$CALL_URL" \
+          cd front &&  curl -X "POST" "$CALL_URL" \
                -H 'Content-Type: multipart/form-data' \
                -H "X-Api-Key: $DTRACK_API_KEY" \
                -F "autoCreate=true" \

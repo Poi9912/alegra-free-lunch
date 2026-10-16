@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies for coverage
         run: cd api && npm ci --include=dev
       - name: Run tests
-        run: npm run test:coverage
+        run: cd api && npm run test:coverage
 
       - name: Debug URL Variables
         run: |
@@ -57,8 +57,8 @@ jobs:
 
       - name: Generate SBOM via Trivy CLI
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-          trivy fs --format cyclonedx --output sbom.json .
+          cd api &&  curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+          cd api &&  trivy fs --format cyclonedx --output sbom.json .
 
       - name: Upload SBOM to Dependency-Track
         env:
@@ -78,7 +78,7 @@ jobs:
           CALL_URL="${DTRACK_API_URL}/api/v1/bom"
           echo "Uploading SBOM to: ${CALL_URL}"
 
-          curl -X "POST" "$CALL_URL" \
+          cd api &&  curl -X "POST" "$CALL_URL" \
                -H 'Content-Type: multipart/form-data' \
                -H "X-Api-Key: $DTRACK_API_KEY" \
                -F "autoCreate=true" \
