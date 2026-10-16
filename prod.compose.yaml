@@ -189,11 +189,11 @@ services:
     expose:
       - "3000"
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.alegra-front.rule=Host(`alegra.${BASE_DOMAIN}`)"
-      - "traefik.http.routers.alegra-front.entrypoints=websecure"
-      - "traefik.http.routers.alegra-front.tls.certresolver=letsencrypt"
-      - "traefik.http.services.alegra-front.loadbalancer.server.port=3000"
+      - traefik.enable=true
+      - traefik.http.routers.alegra-front.rule=Host(`alegra.${BASE_DOMAIN}`)
+      - traefik.http.routers.alegra-front.entrypoints=websecure
+      - traefik.http.routers.alegra-front.tls.certresolver=letsencrypt
+      - traefik.http.services.alegra-front.loadbalancer.server.port=3000
 
 volumes:
   pg_data:
