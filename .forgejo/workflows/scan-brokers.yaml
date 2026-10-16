@@ -30,7 +30,7 @@ jobs:
       image: quay.io/podman/stable
     defaults:
       run:
-        working-directory: ./brokers
+        working-directory: brokers
     steps:
       - run: |
           echo "prepare scan environment"

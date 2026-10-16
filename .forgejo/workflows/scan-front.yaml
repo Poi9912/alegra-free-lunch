@@ -30,7 +30,7 @@ jobs:
       image: quay.io/podman/stable
     defaults:
       run:
-        working-directory: ./front
+        working-directory: front
     steps:
       - run: |
           echo "prepare scan environment"

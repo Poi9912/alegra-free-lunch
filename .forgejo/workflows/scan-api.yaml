@@ -30,7 +30,7 @@ jobs:
       image: quay.io/podman/stable
     defaults:
       run:
-        working-directory: ./api
+        working-directory: api
     steps:
       - run: |
           echo "prepare scan environment"
