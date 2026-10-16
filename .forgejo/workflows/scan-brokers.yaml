@@ -21,6 +21,7 @@ on:
     paths:
       - 'brokers/**'
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   scan:

@@ -21,6 +21,7 @@ on:
     paths:
       - 'api/**'
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   scan:
