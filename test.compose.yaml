@@ -9,10 +9,6 @@ services:
       - pg_data:/var/lib/postgresql
       - ./db/model.sql:/docker-entrypoint-initdb.d/01-model.sql
       - ./db/init.sql:/docker-entrypoint-initdb.d/02-init.sql
-    secrets:
-      - db_name
-      - db_user
-      - db_password
     networks:
       - internal-net
     deploy:
