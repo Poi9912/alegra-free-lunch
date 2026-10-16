@@ -33,12 +33,7 @@ services:
       - redis_data:/data
     networks:
       - internal-net
-    deploy:
-      mode: replicated
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-
+    restart_policy: unless_stoped
   api:
     #image: alegra-api:latest
     build:
@@ -57,14 +52,7 @@ services:
     depends_on:
       - db
       - redis
-    deploy:
-      mode: replicated
-      replicas: 2
-      update_config:
-        parallelism: 1
-        order: start-first
-      restart_policy:
-        condition: on-failure
+    restart_policy: unless_stoped
 
   worker-selector:
     #image: alegra-worker-selector:latest
@@ -85,11 +73,7 @@ services:
     depends_on:
       - db
       - redis
-    deploy:
-      mode: replicated
-      replicas: 1
-      restart_policy:
-        condition: on-failure
+    restart_policy: unless_stoped
 
   worker-purchasing:
     #image: alegra-worker-purchasing:latest
@@ -111,11 +95,7 @@ services:
     depends_on:
       - db
       - redis
-    deploy:
-      mode: replicated
-      replicas: 1
-      restart_policy:
-        condition: on-failure
+    restart_policy: unless_stoped
 
   worker-cooking:
     #image: alegra-worker-cooking:latest
@@ -136,11 +116,7 @@ services:
     depends_on:
       - db
       - redis
-    deploy:
-      mode: replicated
-      replicas: 1
-      restart_policy:
-        condition: on-failure
+    restart_policy: unless_stoped
 
   worker-delivery:
     #image: alegra-worker-delivery:latest
@@ -161,11 +137,7 @@ services:
     depends_on:
       - db
       - redis
-    deploy:
-      mode: replicated
-      replicas: 1
-      restart_policy:
-        condition: on-failure
+    restart_policy: unless_stoped
 
   frontend:
     #image: alegra-front:latest
@@ -184,14 +156,7 @@ services:
       - external-net
     depends_on:
       - api
-    deploy:
-      mode: replicated
-      replicas: 2
-      update_config:
-        parallelism: 1
-        order: start-first
-      restart_policy:
-        condition: on-failure
+    restart_policy: unless_stoped
 
 volumes:
   pg_data:
