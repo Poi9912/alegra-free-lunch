@@ -50,8 +50,9 @@ jobs:
           echo "Sonar URL is '${{ vars.DTRACK_API_URL }}'"
 
       - name: SonarQube Scan
-        working-directory: front
         uses: https://github.com/sonarsource/sonarqube-scan-action@master
+        with:
+          projectBaseDir: api
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_URL }}
@@ -59,7 +60,7 @@ jobs:
       - name: Generate SBOM via Trivy CLI
         run: |
           cd front && curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-          cd front && trivy fs --format cyclonedx --output sbom.json .
+          trivy fs --format cyclonedx --output sbom.json .
 
       - name: Upload SBOM to Dependency-Track
         env:
@@ -67,7 +68,7 @@ jobs:
           DTRACK_API_URL: ${{ vars.DTRACK_API_URL }}
         run: |
           # Parse sonar.projectKey from sonar-project.properties
-          PROJECT_NAME=$(grep '^sonar.projectKey=' sonar-project.properties | cut -d'=' -f2 | tr -d ' "\r')
+          cd front && PROJECT_NAME=$(grep '^sonar.projectKey=' sonar-project.properties | cut -d'=' -f2 | tr -d ' "\r')
 
           # Fallback to repository name if not found in properties file
           if [ -z "$PROJECT_NAME" ]; then
@@ -79,7 +80,7 @@ jobs:
           CALL_URL="${DTRACK_API_URL}/api/v1/bom"
           echo "Uploading SBOM to: ${CALL_URL}"
 
-          cd front &&  curl -X "POST" "$CALL_URL" \
+          curl -X "POST" "$CALL_URL" \
                -H 'Content-Type: multipart/form-data' \
                -H "X-Api-Key: $DTRACK_API_KEY" \
                -F "autoCreate=true" \
