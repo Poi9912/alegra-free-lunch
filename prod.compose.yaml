@@ -1,0 +1,207 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB_: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql
+      - ./db/model.sql:/docker-entrypoint-initdb.d/01-model.sql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/02-init.sql
+    secrets:
+      - db_name
+      - db_user
+      - db_password
+    networks:
+      - internal-net
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d${DB_NAME}"]
+      interval: 60s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal-net
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  api:
+    build:
+      context: ./api
+      file: Dockerfile
+    environment:
+      NODE_ENV: production
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_URL: ${REDIS_URL}
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - internal-net
+    depends_on:
+      - db
+      - redis
+    deploy:
+      mode: replicated
+      replicas: 2
+      update_config:
+        parallelism: 1
+        order: start-first
+      restart_policy:
+        condition: on-failure
+
+  worker-selector:
+    build:
+      context: ./brokers
+      file: Dockerfile
+    command: ["node", "recipeSelectorWorker.js"]
+    environment:
+      NODE_ENV: production
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_URL: ${REDIS_URL}
+      BATCH_COUNT: ${BATCH_COUNT}
+    networks:
+      - internal-net
+    depends_on:
+      - db
+      - redis
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  worker-purchasing:
+    build:
+      context: ./brokers
+      file: Dockerfile
+    command: ["node", "purchasingAgentWorker.js"]
+    environment:
+      NODE_ENV: production
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_URL: ${REDIS_URL}
+      EXTERNAL_API: ${EXTERNAL_API}
+      BATCH_COUNT: ${BATCH_COUNT}
+    networks:
+      - internal-net
+    depends_on:
+      - db
+      - redis
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  worker-cooking:
+    build:
+      context: ./brokers
+      file: Dockerfile
+    command: ["node", "cookingSimulatorWorker.js"]
+    environment:
+      NODE_ENV: production
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_URL: ${REDIS_URL}
+      BATCH_COUNT: ${BATCH_COUNT}
+    networks:
+      - internal-net
+    depends_on:
+      - db
+      - redis
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  worker-delivery:
+    build:
+      context: ./brokers
+      file: Dockerfile
+    command: ["node", "deliverySimulatorWorker.js"]
+    environment:
+      NODE_ENV: production
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_URL: ${REDIS_URL}
+      BATCH_COUNT: ${BATCH_COUNT}
+    networks:
+      - internal-net
+    depends_on:
+      - db
+      - redis
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  frontend:
+    build:
+      context: ./front
+      file: Dockerfile
+      args:
+        - BACKEND_URL=http://api:3000
+    environment:
+      PORT: 3000
+      BACKEND_URL: http://api:3000
+    networks:
+      - internal-net
+      - dokploy-network
+    depends_on:
+      - api
+    deploy:
+      mode: replicated
+      replicas: 2
+      update_config:
+        parallelism: 1
+        order: start-first
+      restart_policy:
+        condition: on-failure
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alegra-front.rule=Host(`alegra.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.alegra-front.entrypoints=websecure"
+      - "traefik.http.routers.alegra-front.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alegra-front.loadbalancer.server.port=3000"
+
+volumes:
+  pg_data:
+  redis_data:
+
+networks:
+  internal-net:
+    driver: overlay
+    internal: true
+  dokploy-network:
+    external: true
