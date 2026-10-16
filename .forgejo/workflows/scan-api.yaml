@@ -28,15 +28,12 @@ on:
 jobs:
   scan:
     runs-on: docker
-    defaults:
-      run:
-        working-directory: ./api/
     container:
       image: quay.io/podman/stable
     steps:
       - run: |
           echo "prepare scan environment"
-          dnf install -y node git
+          cd api && dnf install -y node git
 
       - uses: https://data.forgejo.org/actions/checkout@v4
         with:
