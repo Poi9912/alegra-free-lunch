@@ -10,3 +10,6 @@ data
 .next
 build
 coverage
+**/*.test.js
+**/*.test.ts
+jest.**

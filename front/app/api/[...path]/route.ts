@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { text } from 'stream/consumers';
 
 async function proxyHandler(
   request: NextRequest, 
@@ -10,7 +9,7 @@ async function proxyHandler(
     // Await params as required by newer Next.js versions
     const resolvedParams = await params;
     const pathSegments = resolvedParams.path || [];
-    const backendBase = process.env.BACKEND_URL+'/api' || 'http://localhost:3000/api';
+    const backendBase = `${process.env.BACKEND_URL || 'http://localhost:3000'}/api`;
     
     // Construct target URL including any query parameters
     const targetUrl = `${backendBase}/${pathSegments.join('/')}${request.nextUrl.search}`;
