@@ -1,4 +1,5 @@
-const { getRandomDelay } = require('./timer.js');
+import { jest } from '@jest/globals';
+import { getRandomDelay } from './timer.js';
 
 describe('getRandomDelay', () => {
   afterEach(() => {

@@ -1,4 +1,5 @@
-const { logger } = require('./logger.js');
+import { jest } from '@jest/globals';
+import { logger } from './logger.js';
 
 describe('logger', () => {
   afterEach(() => {

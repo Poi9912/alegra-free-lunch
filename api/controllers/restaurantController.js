@@ -166,10 +166,17 @@ export const restaurantController = {
       const { rows: updatedRows } = await dbPool.query(fetchQuery, [orderId]);
       const updatedOrder = updatedRows[0];
 
-      // 3. Respond to client and broadcast via Redis Pub/Sub
+      // 3. Respond to client
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true, data: updatedOrder }));
 
+      // 4. Broadcast via WebSocket manager to all connected clients
+      broadcastUpdate({
+        type: 'ORDER_UPDATED',
+        data: updatedOrder,
+      });
+
+      // (Optional) Keep Redis publish if your background workers or other nodes need it
       await redisClient.publish(
         'events:orders',
         JSON.stringify({
@@ -182,7 +189,7 @@ export const restaurantController = {
       sendError(res, 500, err.message);
     }
   },
-
+  
   // Batch Order Generation (Manager only)
   createBatchOrders: async (req, res) => {
     try {

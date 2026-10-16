@@ -1,13 +1,5 @@
 export default {
   testEnvironment: 'node',
-  transform: {
-    '^.+\\.js$': [
-      'babel-jest',
-      {
-        presets: [['@babel/preset-env', { targets: { node: 'current' } }]],
-      },
-    ],
-  },
   testMatch: ['**/*.test.js'],
   testPathIgnorePatterns: [
     '/node_modules/',

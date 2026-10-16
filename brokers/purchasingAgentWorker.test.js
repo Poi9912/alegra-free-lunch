@@ -1,7 +1,8 @@
-const client = { query: jest.fn(), release: jest.fn() };
-const dbPool = { connect: jest.fn() };
-const connectRedisClient = jest.fn();
-const redisClient = {
+import { jest } from '@jest/globals';
+
+const mockClient = { query: jest.fn(), release: jest.fn() };
+const mockDbPool = { connect: jest.fn() };
+const mockRedisClient = {
   del: jest.fn(),
   publish: jest.fn(),
   xAck: jest.fn(),
@@ -9,162 +10,237 @@ const redisClient = {
   xGroupCreate: jest.fn(),
   xReadGroup: jest.fn(),
 };
-const logger = { error: jest.fn(), info: jest.fn() };
-
-jest.doMock('./shared/db.js', () => ({ connectRedisClient, dbPool, redisClient }));
-jest.doMock('./shared/logger.js', () => ({ logger }));
-
-const { restockInventory, start } = require('./purchasingAgentWorker.js');
+const mockLogger = { error: jest.fn(), info: jest.fn() };
 
 describe('purchasing agent worker', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    jest.resetModules();
     jest.clearAllMocks();
-    connectRedisClient.mockResolvedValue(undefined);
-    dbPool.connect.mockResolvedValue(client);
-    client.query.mockResolvedValue({ rows: [] });
-    redisClient.del.mockResolvedValue(1);
-    redisClient.publish.mockResolvedValue(1);
-    redisClient.xAdd.mockResolvedValue('stream-id');
-    redisClient.xGroupCreate.mockResolvedValue(undefined);
+    mockDbPool.connect.mockResolvedValue(mockClient);
+    mockClient.query.mockResolvedValue({ rows: [] });
+    mockClient.release.mockResolvedValue(undefined);
+    mockRedisClient.del.mockResolvedValue(1);
+    mockRedisClient.publish.mockResolvedValue(1);
+    mockRedisClient.xAdd.mockResolvedValue('stream-id');
+    mockRedisClient.xAck.mockResolvedValue(1);
+    mockRedisClient.xGroupCreate.mockResolvedValue(undefined);
+    mockRedisClient.xReadGroup.mockImplementation(() => new Promise(() => {}));
+
+    jest.unstable_mockModule('./shared/db.js', () => ({
+      dbPool: mockDbPool,
+      redisClient: mockRedisClient,
+    }));
+    jest.unstable_mockModule('./shared/logger.js', () => ({ logger: mockLogger }));
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  test('commits without purchases when all ingredients are adequately stocked', async () => {
-    await restockInventory();
+  test('commits when there are no low-stock ingredients and acknowledges the request', async () => {
+    mockRedisClient.xReadGroup.mockResolvedValueOnce([{
+      messages: [{ id: 'purchase-empty', message: {} }],
+    }]);
 
-    expect(client.query).toHaveBeenCalledWith('BEGIN');
-    expect(client.query).toHaveBeenCalledWith('COMMIT');
-    expect(client.query).not.toHaveBeenCalledWith('SAVEPOINT ingredient_sp');
-    expect(redisClient.xAdd).not.toHaveBeenCalled();
-    expect(client.release).toHaveBeenCalledTimes(1);
+    await loadWorker();
+
+    expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
+    expect(mockClient.query).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE COALESCE(inv.quantity, 0) < 5')
+    );
+    expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+    expect(mockClient.query).not.toHaveBeenCalledWith('SAVEPOINT ingredient_sp');
+    expect(mockRedisClient.xAdd).not.toHaveBeenCalled();
+    expect(mockRedisClient.xAck).toHaveBeenCalledWith(
+      'stream:inventory:purchase',
+      'purchase-group',
+      'purchase-empty'
+    );
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  test('updates existing stock, inserts missing stock and publishes inventory changes', async () => {
+  test('updates and inserts purchased stock, records purchases, and publishes changes', async () => {
     const lowStock = [
       { id: 1, name: 'Rice' },
       { id: 2, name: 'Beans' },
     ];
-    client.query.mockImplementation(async (query, params) => {
+    mockClient.query.mockImplementation(async (query, params) => {
       if (query.includes('SELECT i.id, i.name')) return { rows: lowStock };
       if (query.includes('SELECT ingredient_id FROM ingredients_inventory')) {
         return { rows: params[0] === 1 ? [{ ingredient_id: 1 }] : [] };
       }
       return { rows: [] };
     });
-    jest.spyOn(global, 'fetch')
+    jest.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce({ ok: true, json: async () => ({ quantitySold: 4 }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ quantitySold: 3 }) });
+    mockRedisClient.xReadGroup.mockResolvedValueOnce([{
+      messages: [{ id: 'purchase-restock', message: {} }],
+    }]);
 
-    await restockInventory();
+    await loadWorker();
 
-    expect(client.query).toHaveBeenCalledWith(
+    expect(fetch).toHaveBeenNthCalledWith(1, expect.stringMatching(/buy\?ingredient=Rice$/));
+    expect(fetch).toHaveBeenNthCalledWith(2, expect.stringMatching(/buy\?ingredient=Beans$/));
+    expect(mockClient.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE ingredients_inventory SET quantity'),
       [1, 4]
     );
-    expect(client.query).toHaveBeenCalledWith(
+    expect(mockClient.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO ingredients_inventory'),
       [2, 3]
     );
-    expect(client.query).toHaveBeenCalledWith(
+    expect(mockClient.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO inventory_purchase_history'),
       [1, 4]
     );
-    expect(client.query).toHaveBeenCalledWith(
+    expect(mockClient.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO inventory_purchase_history'),
       [2, 3]
     );
-    expect(redisClient.del).toHaveBeenCalledWith('cache:inventory:status');
-    expect(redisClient.publish).toHaveBeenCalledWith(
+    expect(mockRedisClient.del).toHaveBeenCalledWith('cache:inventory:status');
+    expect(mockRedisClient.publish).toHaveBeenCalledWith(
       'events:inventory',
       JSON.stringify({ type: 'INVENTORY_UPDATED', data: {} })
     );
-    expect(client.query).toHaveBeenCalledWith('COMMIT');
+    expect(mockRedisClient.xAdd).toHaveBeenCalledWith(
+      'stream:inventory:restocked',
+      '*',
+      { timestamp: expect.any(String) }
+    );
+    expect(mockRedisClient.xAck).toHaveBeenCalledWith(
+      'stream:inventory:purchase',
+      'purchase-group',
+      'purchase-restock'
+    );
   });
 
-  test('rolls back a market HTTP failure and continues processing ingredients', async () => {
-    client.query.mockImplementation(async (query) => {
+  test('rolls back an HTTP failure and releases its savepoint before continuing', async () => {
+    mockClient.query.mockImplementation(async query => {
       if (query.includes('SELECT i.id, i.name')) {
         return { rows: [{ id: 1, name: 'Rice' }, { id: 2, name: 'Beans' }] };
       }
       return { rows: [] };
     });
-    jest.spyOn(global, 'fetch')
+    jest.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce({ ok: false, status: 503 })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ quantitySold: 0 }) });
+    mockRedisClient.xReadGroup.mockResolvedValueOnce([{
+      messages: [{ id: 'purchase-failed', message: {} }],
+    }]);
 
-    await restockInventory();
+    await loadWorker();
 
-    expect(client.query).toHaveBeenCalledWith('ROLLBACK TO SAVEPOINT ingredient_sp');
-    expect(logger.error).toHaveBeenCalledWith("Market API error for 'Rice': HTTP 503");
-    expect(client.query).toHaveBeenCalledWith('RELEASE SAVEPOINT ingredient_sp');
-    expect(redisClient.del).not.toHaveBeenCalled();
+    expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK TO SAVEPOINT ingredient_sp');
+    expect(mockClient.query).toHaveBeenCalledWith('RELEASE SAVEPOINT ingredient_sp');
+    expect(mockLogger.error).toHaveBeenCalledWith("Market API error for 'Rice': HTTP 503");
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      "Ingredient 'Beans' is currently unavailable in the market (quantitySold: 0)."
+    );
+    expect(mockRedisClient.del).not.toHaveBeenCalled();
+    expect(mockRedisClient.xAdd).toHaveBeenCalledWith(
+      'stream:inventory:restocked',
+      '*',
+      { timestamp: expect.any(String) }
+    );
   });
 
-  test('rolls back an individual ingredient when its response cannot be parsed', async () => {
-    client.query.mockImplementation(async (query) => {
-      if (query.includes('SELECT i.id, i.name')) return { rows: [{ id: 1, name: 'Rice' }] };
+  test('rolls back an ingredient whose response cannot be parsed and continues processing', async () => {
+    mockClient.query.mockImplementation(async (query, params) => {
+      if (query.includes('SELECT i.id, i.name')) {
+        return { rows: [{ id: 1, name: 'Rice' }, { id: 2, name: 'Beans' }] };
+      }
+      if (query.includes('SELECT ingredient_id FROM ingredients_inventory')) return { rows: [] };
       return { rows: [] };
     });
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => {
-        throw new SyntaxError('invalid response');
-      },
-    });
+    jest.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => {
+          throw new SyntaxError('invalid response');
+        },
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ quantitySold: 2 }) });
+    mockRedisClient.xReadGroup.mockResolvedValueOnce([{
+      messages: [{ id: 'purchase-parse-failure', message: {} }],
+    }]);
 
-    await restockInventory();
+    await loadWorker();
 
-    expect(client.query).toHaveBeenCalledWith('ROLLBACK TO SAVEPOINT ingredient_sp');
-    expect(logger.error).toHaveBeenCalledWith(
+    expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK TO SAVEPOINT ingredient_sp');
+    expect(mockLogger.error).toHaveBeenCalledWith(
       "Error/Parsing error for ingredient 'Rice'",
       expect.any(SyntaxError)
     );
-    expect(client.query).toHaveBeenCalledWith('COMMIT');
+    expect(mockClient.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO ingredients_inventory'),
+      [2, 2]
+    );
+    expect(mockRedisClient.del).toHaveBeenCalledWith('cache:inventory:status');
   });
 
-  test('rolls back and logs transaction-level failures then releases the client', async () => {
+  test('rolls back and logs transaction-level failures while still releasing the client', async () => {
     const error = new Error('database unavailable');
-    client.query.mockRejectedValue(error);
+    const rollbackError = new Error('rollback failed');
+    mockClient.query.mockImplementation(query => {
+      if (query === 'BEGIN') return Promise.reject(error);
+      if (query === 'ROLLBACK') return Promise.reject(rollbackError);
+      return Promise.resolve({ rows: [] });
+    });
+    mockRedisClient.xReadGroup.mockResolvedValueOnce([{
+      messages: [{ id: 'purchase-db-error', message: {} }],
+    }]);
 
-    await restockInventory();
+    await loadWorker();
 
-    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
-    expect(logger.error).toHaveBeenCalledWith('[PurchasingAgent] Restock transaction failed', error);
-    expect(client.release).toHaveBeenCalledTimes(1);
+    expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      '[PurchasingAgent] Restock transaction failed',
+      error
+    );
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+    expect(mockRedisClient.xAck).toHaveBeenCalledWith(
+      'stream:inventory:purchase',
+      'purchase-group',
+      'purchase-db-error'
+    );
   });
 
-  test('acknowledges purchase requests and logs stream loop errors', async () => {
+  test('ignores existing consumer groups and logs stream read errors', async () => {
     const error = new Error('stream unavailable');
-    redisClient.xGroupCreate.mockRejectedValueOnce(new Error('group already exists'));
-    redisClient.xReadGroup
+    mockRedisClient.xGroupCreate.mockRejectedValueOnce(new Error('group exists'));
+    mockRedisClient.xReadGroup
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce([{
-        messages: [{ id: 'purchase-1', message: {} }],
-      }])
-      .mockRejectedValueOnce(error);
-    jest.spyOn(global, 'setTimeout').mockImplementation((callback, delay) => {
-      if (delay !== 3000) {
-        return callback();
-      }
-      throw new Error('stop worker loop');
-    });
+      .mockRejectedValueOnce(error)
+      .mockImplementation(() => new Promise(() => {}));
+    jest.spyOn(globalThis, 'setTimeout').mockImplementation(() => 0);
 
-    await expect(start()).rejects.toThrow('stop worker loop');
+    await loadWorker();
 
-    expect(redisClient.xGroupCreate).toHaveBeenCalledWith(
-      'stream:inventory:purchase',
+    expect(mockRedisClient.xReadGroup).toHaveBeenNthCalledWith(
+      1,
       'purchase-group',
-      '0',
-      { MKSTREAM: true }
+      'worker-purchasing',
+      [{ key: 'stream:inventory:purchase', id: '>' }],
+      { COUNT: 1, BLOCK: 5000 }
     );
-    expect(logger.error).toHaveBeenCalledWith('[PurchasingAgent] Stream loop error', error);
-    expect(redisClient.xAck).toHaveBeenCalledWith(
-      'stream:inventory:purchase',
-      'purchase-group',
-      'purchase-1'
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      '[PurchasingAgent] Stream loop error',
+      error
     );
+    expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 3000);
   });
 });
+
+async function loadWorker() {
+  await jest.isolateModulesAsync(async () => {
+    await import('./purchasingAgentWorker.js');
+  });
+  await flushMicrotasks();
+}
+
+async function flushMicrotasks() {
+  for (let i = 0; i < 30; i += 1) {
+    await Promise.resolve();
+  }
+}

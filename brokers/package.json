@@ -13,7 +13,7 @@
   "type": "module",
   "main": "cookingSimulatorWorker.js",
   "scripts": {
-    "test": "node ./node_modules/jest/bin/jest.js --runInBand",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand",
     "test:coverage": "npm test -- --coverage"
   },
   "dependencies": {
