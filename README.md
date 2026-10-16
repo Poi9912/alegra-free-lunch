@@ -72,6 +72,9 @@ El compose para este ambiente es [test.compose.yaml](test.compose.yaml).
 
 ### Despliegue en ambiente de productivo usando compose stack
 
+![Despliegue en ambiente prod con Dokploy](docs/img/deploy-prod.png)
+![Ambiente Productivo](docs/img/prod-env.png)
+
 Se recomienda uso de un proveedor de secretos o montaje de variables dinámico desde una interfaz de administración de docker (Portainer, Dockge, Dockhand, Dokploy).
 
 El compose para este ambiente es [prod.compose.yaml](prod.compose.yaml).
