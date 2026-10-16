@@ -24,3 +24,6 @@
 ![Despliegue - Diagrama de dependencias](img/test-dependency-graph.png)
 ![Visualización en funcionamiento](img/test-view.png)
 
+## Flujo de test automáticos
+
+Todo el proceso integrado de testing se realiza cuando se generan pull request o push a la rama main del repositorio de git forgejo privado, los resultados se suben a la instancia SonarQube privada de mi homelab y posteriormente por integraciones de push se envía al repositorio externo de github, así como señal de actualización a la infraestructura conectada a este repo para despliegues automáticos.
