@@ -28,6 +28,9 @@ on:
 jobs:
   scan:
     runs-on: docker
+    defaults:
+      run:
+        working-directory: ./api/
     container:
       image: quay.io/podman/stable
     steps:
@@ -40,10 +43,8 @@ jobs:
           fetch-depth: 0
 
       - name: Install dependencies for coverage
-        working-directory: api
         run: npm ci --include=dev
       - name: Run tests
-        working-directory: api
         run: npm run test:coverage
 
       - name: Debug URL Variables
@@ -52,20 +53,17 @@ jobs:
           echo "Sonar URL is '${{ vars.DTRACK_API_URL }}'"
 
       - name: SonarQube Scan
-        working-directory: api
         uses: https://github.com/sonarsource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_URL }}
 
       - name: Generate SBOM via Trivy CLI
-        working-directory: api
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
           trivy fs --format cyclonedx --output sbom.json .
 
       - name: Upload SBOM to Dependency-Track
-        working-directory: api
         env:
           DTRACK_API_KEY: ${{ secrets.DTRACK_API_KEY }}
           DTRACK_API_URL: ${{ vars.DTRACK_API_URL }}
