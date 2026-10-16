@@ -52,7 +52,7 @@ jobs:
       - name: SonarQube Scan
         uses: https://github.com/sonarsource/sonarqube-scan-action@master
         with:
-          projectBaseDir: api
+          projectBaseDir: front
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_URL }}
