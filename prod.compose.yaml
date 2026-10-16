@@ -46,7 +46,7 @@ services:
   api:
     build:
       context: ./api
-      file: Dockerfile
+      dockerfile: Dockerfile
     environment:
       NODE_ENV: production
       DB_HOST: ${DB_HOST}
@@ -72,7 +72,7 @@ services:
   worker-selector:
     build:
       context: ./brokers
-      file: Dockerfile
+      dockerfile: Dockerfile
     command: ["node", "recipeSelectorWorker.js"]
     environment:
       NODE_ENV: production
@@ -96,7 +96,7 @@ services:
   worker-purchasing:
     build:
       context: ./brokers
-      file: Dockerfile
+      dockerfile: Dockerfile
     command: ["node", "purchasingAgentWorker.js"]
     environment:
       NODE_ENV: production
@@ -121,7 +121,7 @@ services:
   worker-cooking:
     build:
       context: ./brokers
-      file: Dockerfile
+      dockerfile: Dockerfile
     command: ["node", "cookingSimulatorWorker.js"]
     environment:
       NODE_ENV: production
@@ -145,7 +145,7 @@ services:
   worker-delivery:
     build:
       context: ./brokers
-      file: Dockerfile
+      dockerfile: Dockerfile
     command: ["node", "deliverySimulatorWorker.js"]
     environment:
       NODE_ENV: production
@@ -169,7 +169,7 @@ services:
   frontend:
     build:
       context: ./front
-      file: Dockerfile
+      dockerfile: Dockerfile
       args:
         - BACKEND_URL=http://api:3000
     environment:

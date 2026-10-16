@@ -47,7 +47,7 @@ services:
     #image: alegra-api:latest
     build:
       context: ./api
-      file: Dockerfile
+      dockerfile: Dockerfile
     environment:
       NODE_ENV: production
       DB_HOST: ${DB_HOST}
@@ -74,7 +74,7 @@ services:
     #image: alegra-worker-selector:latest
     build:
       context: ./brokers
-      file: Dockerfile
+      dockerfile: Dockerfile
     command: ["node", "recipeSelectorWorker.js"]
     environment:
       NODE_ENV: production
@@ -99,7 +99,7 @@ services:
     #image: alegra-worker-purchasing:latest
     build:
       context: ./brokers
-      file: Dockerfile
+      dockerfile: Dockerfile
     command: ["node", "purchasingAgentWorker.js"]
     environment:
       NODE_ENV: production
@@ -125,7 +125,7 @@ services:
     #image: alegra-worker-cooking:latest
     build:
       context: ./brokers
-      file: Dockerfile
+      dockerfile: Dockerfile
     command: ["node", "cookingSimulatorWorker.js"]
     environment:
       NODE_ENV: production
@@ -150,7 +150,7 @@ services:
     #image: alegra-worker-delivery:latest
     build:
       context: ./brokers
-      file: Dockerfile
+      dockerfile: Dockerfile
     command: ["node", "deliverySimulatorWorker.js"]
     environment:
       NODE_ENV: production
@@ -175,7 +175,7 @@ services:
     #image: alegra-front:latest
     build:
       context: ./front
-      file: Dockerfile
+      dockerfile: Dockerfile
       args:
         - BACKEND_URL=http://api:3000
     environment:
