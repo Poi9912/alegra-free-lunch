@@ -14,6 +14,13 @@
 
 ![Test unitarios - Frontend (jestdom)](img/front-coverage.png)
 
-## Analisis estático de código (SonarQube)
+## Analisis estático de código (SonarQube) y vulnerabilidades
 
 ![Analisis de código - SonarQube](img/sonar.png)
+
+## Despliegue en ambiente de testing privado
+
+![Despliegue - Dockhand](img/test-env.png)
+![Despliegue - Diagrama de dependencias](img/test-dependency-graph.png)
+![Visualización en funcionamiento](img/test-view.png)
+
