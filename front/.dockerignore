@@ -10,6 +10,6 @@ data
 .next
 build
 coverage
-**/*.test.js
-**/*.test.ts
+**/*.test.*
 jest.**
+**sonar**
