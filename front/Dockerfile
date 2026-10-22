@@ -1,9 +1,9 @@
-FROM node:26.11.1-alpine AS deps
+FROM node:26.12.1-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-FROM node:26.11.1-alpine AS builder
+FROM node:26.12.1-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -13,7 +13,7 @@ ARG BACKEND_URL=http://api:3000
 ENV BACKEND_URL=${BACKEND_URL}
 RUN npm run build
 
-FROM node:26.11.1-alpine AS runner
+FROM node:26.12.1-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
